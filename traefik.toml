@@ -1,0 +1,29 @@
+defaultEntryPoints = ["http", "https"]
+
+[entryPoints]
+    [entryPoints.http]
+        address = ":80"
+    [entryPoints.https]
+        address = ":443"
+    [entryPoints.https.tls]
+
+[acme]
+    entryPoint = "https"
+    storage = "acme.json"
+    caServer = "https://acme-v02.api.letsencrypt.org/directory"
+[acme.dnsChallenge]
+    provider = "cloudflare"
+    delayBeforeCheck = 0
+[[acme.domains]]
+    main = "*.beowulf.cc"
+
+[docker]
+    endpoint = "unix:///var/run/docker.sock"
+    domain = "docker.localhost"
+    watch = true
+    exposedByDefault = false
+
+[web]
+    address = ":8080"
+[web.auth.basic]
+    users = ["Agamemnon:[PASSWORD]"]
