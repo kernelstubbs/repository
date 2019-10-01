@@ -5,7 +5,6 @@ defaultEntryPoints = ["http", "https"]
         address = ":80"
     [entryPoints.https]
         address = ":443"
-    [entryPoints.https.tls]
 
 [acme]
     entryPoint = "https"
