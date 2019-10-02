@@ -15,7 +15,7 @@ defaultEntryPoints = ["http", "https"]
 
 [acme]
     entryPoint = "https"
-    storage = "acme.json"
+    storageFile = "/acme.json"
     caServer = "https://acme-v02.api.letsencrypt.org/directory"
 [acme.dnsChallenge]
     provider = "cloudflare"
