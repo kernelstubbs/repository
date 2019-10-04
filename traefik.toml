@@ -1,35 +1,42 @@
-defaultEntryPoints = ["http", "https"]
+logLevel = "ERROR" #DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+InsecureSkipVerify = true 
+defaultEntryPoints = ["https", "http"]
 
+[api]
+    entryPoint = "traefik"
+    dashboard = true
+    address = ":8080"
+
+# Force HTTPS
 [entryPoints]
     [entryPoints.http]
         address = ":80"
-    [entryPoints.http.redirect]
-        entryPoint = "https"
+            [entryPoints.http.redirect]
+                entryPoint = "https"
     [entryPoints.https]
         address = ":443"
     [entryPoints.https.tls]
 
-[retry]
-
-[api]
+[file]
+    #watch = true
+    #filename = "/etc/traefik/rules.toml"
 
 [acme]
+    email = "grendel@beowulf.cc"
+    storage="/etc/traefik/acme/acme.json"
     entryPoint = "https"
-    storageFile = "/acme.json"
-    caServer = "https://acme-v02.api.letsencrypt.org/directory"
+    acmeLogging=true 
+    onDemand = false #create certificate when container is created
 [acme.dnsChallenge]
     provider = "cloudflare"
-    delayBeforeCheck = 0
+    delayBeforeCheck = 300
+[[acme.domains]]
+    main = "beowulf.cc"
 [[acme.domains]]
     main = "*.beowulf.cc"
-
+   
 [docker]
     endpoint = "unix:///var/run/docker.sock"
-    domain = "docker.localhost"
+    domain = "beowulf.cc"
     watch = true
-    exposedByDefault = false
-
-[web]
-    address = ":8080"
-[web.auth.basic]
-    users = ["Agamemnon:[PASSWORD]"]
+    exposedbydefault = false

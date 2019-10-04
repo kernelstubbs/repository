@@ -1,26 +1,15 @@
 version: "3.7"
 services:
-  jackett:
-    container_name: jackett
-    image: linuxserver/jackett
-    env_file:
-      - ./env/global.env
-    ports:
-      - 9117:9117
-    volumes:
-      - ${DOCKER}/jackett/config:/config
-      - /var/tmp:/downloads
-    restart: unless-stopped
-
   plex:
     container_name: plex
     image: plexinc/pms-docker
+    hostname: plex
+    domainname: ${DOMAIN}
     env_file:
       - ./env/global.env
       #PLEX_CLAIM: [claimtoken]
       #Advertise_IP: 
     ports:
-      - 32400:32400/tcp
       - 3005:3005/tcp
       - 8324:8324/tcp
       - 32469:32469/tcp
@@ -33,22 +22,32 @@ services:
       - ${DOCKER}/plex/config:/config
       - ${DOCKER}/plex/library:/data
       - ${DOCKER}/plex/transcode:/transcode
+    labels:
+      traefik.enable: true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:plex.${DOMAIN}
+      traefik.port: 32400
     restart: unless-stopped
 
   pihole:
     container_name: pihole
-    image: pihole/pihole:latest
+    image: pihole/pihole
+    hostname: pihole
+    domainname: ${DOMAIN}
     env_file:
       - ./env/pihole.env
     ports:
       - 53:53/tcp
       - 53:53/udp
       - 67:67/udp
-      - 81:80/tcp
-      - 444:443/tcp
     volumes:
       - ${DOCKER}/pihole/etc-pihole/:/etc/pihole/
       - ${DOCKER}/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d/
+    labels:
+      traefik.enable: true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:pihole.${DOMAIN}
+      traefik.port: 80
     #cap_add:   # enable for DHCP
     #  - NET_ADMIN
     restart: unless-stopped
@@ -56,33 +55,59 @@ services:
   sonarr:
     container_name: sonarr
     image: linuxserver/sonarr
+    hostname: sonarr
     env_file:
       - ./env/global.env
-    ports:
-      - 8989:8989
     volumes:
       - ${DOCKER}/sonarr/config:/config
       - ${DOCKER}/plex/library/television:/tv
       - ${DOCKER}/downloads:/downloads
+    labels:
+      traefik.enable: true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:sonarr.${DOMAIN}
+      traefik.port: 8989
     restart: unless-stopped
 
   radarr:
     container_name: radarr
     image: linuxserver/radarr
+    hostname: radarr
     env_file:
     - ./env/global.env
-    ports:
-      - 7878:7878
     volumes:
       - ${DOCKER}/radarr/config:/config
       - ${DOCKER}/plex/library/movies:/movies
       - ${DOCKER}/downloads:/downloads
+    labels:
+      traefik.enable: true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:radarr.${DOMAIN}
+      traefik.port: 7878
+    restart: unless-stopped
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer
+    hostname: portainer
+    env_file:
+    - ./env/global.env
+    ports:
+      - 9000:9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER}/portainer/data:/data
+    labels:
+      traefik.enabled: false #true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:portainer.${DOMAIN}
+      traefik.port: 9000
     restart: unless-stopped
 
   traefik:
     container_name: traefik
     image: traefik:1.7
-    #image: traefik:latest
+    hostname: traefik
     env_file:
       ./env/traefik.env
     ports:
@@ -93,27 +118,25 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER}/traefik/traefik.toml:/etc/traefik/traefik.toml
       - ${DOCKER}/traefik/acme.json:/acme.json
-      #- ${DOCKER}/traefik/traefik.yml:/traefik.yml
-    #command: --providers.docker
-    #networks:
-    #  - proxy
-    labels:
-      - traefik.enabled=true
+    #labels:
+    #  traefik.enabled: true
+    #  traefik.frontend.redirect.entryPoint: https
+    #  traefik.frontend.rule: Host:traefik.${DOMAIN}
+    #  traefik.port: 8080
     restart: unless-stopped
-
-
-
 
   ### VPN and Subcontainers
 
   vpn:
     container_name: vpn
     image: bubuntux/nordvpn
+    hostname: vpn
     env_file:
       ./env/nordvpn.env
     ports:
-      - 8112:8112
-      - 8118:8118
+      - 9117:9117 # jackett
+      - 8112:8112 # deluge
+      - 8118:8118 #
       - 58846:58846
       - 58946:58946
     cap_add:
@@ -133,19 +156,29 @@ services:
       - ./env/global.env
     volumes:
       - ${DOCKER}/deluge/config:/config
-      - ${DOCKER}/deluge/unionfs:/unionfs
-      - ${DOCKER}/deluge:/mydata
+      - ${DOCKER}/downloads:/downloads
     network_mode: service:vpn
     labels:
       traefik.enable: true
-      traefik.frontend.headers.customResponseHeaders: X-Robots-Tag:noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex
       traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: ${URL_DELUGE}
+      traefik.frontend.rule: Host:deluge.${DOMAIN},artemis.${DOMAIN}
       traefik.port: 8112
     restart: unless-stopped
-      
-#networks:
-#  beowulf:
-#    external: true
-#  proxy:
-#    external: true
+
+  jackett:
+    container_name: jackett
+    image: linuxserver/jackett
+    depends_on:
+      - vpn
+    env_file:
+      - ./env/global.env
+    volumes:
+      - ${DOCKER}/jackett/config:/config
+      - /var/tmp:/downloads
+    network_mode: service:vpn
+    labels:
+      traefik.enable: true
+      traefik.frontend.redirect.entryPoint: https
+      traefik.frontend.rule: Host:jackett.${DOMAIN}
+      traefik.port: 9117
+    restart: unless-stopped
