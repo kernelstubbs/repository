@@ -7,8 +7,6 @@ services:
     domainname: ${DOMAIN}
     env_file:
       - ./env/global.env
-      #PLEX_CLAIM: [claimtoken]
-      #Advertise_IP: 
     ports:
       - 3005:3005/tcp
       - 8324:8324/tcp
@@ -48,8 +46,6 @@ services:
       traefik.frontend.redirect.entryPoint: https
       traefik.frontend.rule: Host:pihole.${DOMAIN}
       traefik.port: 80
-    #cap_add:   # enable for DHCP
-    #  - NET_ADMIN
     restart: unless-stopped
   
   sonarr:
@@ -141,8 +137,6 @@ services:
       - 58946:58946
     cap_add:
       - NET_ADMIN
-    #volumes:
-    #  - /etc/localtime:/etc/localtime:ro
     devices:
       - /dev/net/tun
     restart: unless-stopped
