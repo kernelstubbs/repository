@@ -113,7 +113,7 @@ services:
     env_file:
       - ./env/nginx.env
     volumes:
-      - ${DOCKER}/nginx/config:/config
+      - NginxCFG:/config
     ports:
       - 80:80
       - 443:443
@@ -232,6 +232,12 @@ volumes:
         type: nfs
         o: addr=${NAS},rw,bg,intr,soft,nolock
         device: ":${NASROOT}/plex/config"
+  NginxCFG:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/nginx/config"
   TMP:
       driver: local
       driver_opts:

@@ -15,3 +15,7 @@ chmod +x /opt/bin/docker-compose
 mkdir /opt/docker
 
 git clone https://github.com/kernelstubbs/repository.git /opt/docker
+
+cd /opt/docker
+
+docker-compose up -d
