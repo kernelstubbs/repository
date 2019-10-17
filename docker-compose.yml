@@ -10,21 +10,28 @@ services:
     ports:
       - 3005:3005/tcp
       - 8324:8324/tcp
+      - 32400:32400/tcp
       - 32469:32469/tcp
-      - 1900:1900/udp
+#      - 1900:1900/udp
       - 32410:32410/udp
       - 32412:32412/udp
       - 32413:32413/udp
       - 32414:32414/udp
+    networks:
+      - plex-net
     volumes:
-      - ${DOCKER}/plex/config:/config
-      - ${DOCKER}/plex/library:/data
-      - ${DOCKER}/plex/transcode:/transcode
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:plex.${DOMAIN}
-      traefik.port: 32400
+      - PlexCFG:/config
+      - PlexLib:/data
+      - TMP:/transcode
+    restart: unless-stopped
+
+  watchtower:
+    container_name: watchtower
+    image: v2tec/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    #check at 3am only
+    command: --cleanup --schedule "0 0 3 * * *"
     restart: unless-stopped
 
   pihole:
@@ -38,87 +45,82 @@ services:
       - 53:53/tcp
       - 53:53/udp
       - 67:67/udp
+      - 8888:80/tcp
+      - 4444:443/tcp
     volumes:
-      - ${DOCKER}/pihole/etc-pihole/:/etc/pihole/
-      - ${DOCKER}/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d/
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:pihole.${DOMAIN}
-      traefik.port: 80
+      - PiETC:/etc/pihole/
+      - PiMasq:/etc/dnsmasq.d/
     restart: unless-stopped
-  
+
   sonarr:
     container_name: sonarr
     image: linuxserver/sonarr
     hostname: sonarr
+    domainname: ${DOMAIN}
     env_file:
       - ./env/global.env
+    ports:
+      - 8989:8989
+    networks:
+      - torrent-net
+      - plex-net
     volumes:
-      - ${DOCKER}/sonarr/config:/config
-      - ${DOCKER}/plex/library/television:/tv
-      - ${DOCKER}/downloads:/downloads
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:sonarr.${DOMAIN}
-      traefik.port: 8989
+      - SonarrCFG:/config
+      - PlexTV:/tv
+      - Downloads:/downloads
     restart: unless-stopped
 
   radarr:
     container_name: radarr
     image: linuxserver/radarr
     hostname: radarr
+    domainname: ${DOMAIN}
     env_file:
     - ./env/global.env
+    ports:
+      - 7878:7878
+    networks:
+      - torrent-net
+      - plex-net
     volumes:
-      - ${DOCKER}/radarr/config:/config
-      - ${DOCKER}/plex/library/movies:/movies
-      - ${DOCKER}/downloads:/downloads
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:radarr.${DOMAIN}
-      traefik.port: 7878
+      - RadarrCFG:/config
+      - PlexMovies:/movies
+      - Downloads:/downloads
     restart: unless-stopped
 
   portainer:
     container_name: portainer
     image: portainer/portainer
     hostname: portainer
+    domainname: ${DOMAIN}
+    command: -H unix:///var/run/docker.sock
     env_file:
     - ./env/global.env
     ports:
       - 9000:9000
+    networks:
+      - port-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKER}/portainer/data:/data
-    labels:
-      traefik.enabled: false #true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:portainer.${DOMAIN}
-      traefik.port: 9000
+      - PortainerDAT:/data
     restart: unless-stopped
 
-  traefik:
-    container_name: traefik
-    image: traefik:1.7
-    hostname: traefik
+  nginx:
+    image: linuxserver/letsencrypt
+    container_name: nginx
+    cap_add:
+      - NET_ADMIN
     env_file:
-      ./env/traefik.env
+      - ./env/nginx.env
+    volumes:
+      - ${DOCKER}/nginx/config:/config
     ports:
       - 80:80
       - 443:443
-      - 8080:8080
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKER}/traefik/traefik.toml:/etc/traefik/traefik.toml
-      - ${DOCKER}/traefik/acme.json:/acme.json
-    #labels:
-    #  traefik.enabled: true
-    #  traefik.frontend.redirect.entryPoint: https
-    #  traefik.frontend.rule: Host:traefik.${DOMAIN}
-    #  traefik.port: 8080
+    networks:
+      - torrent-net
+      - port-net
+      - plex-net
     restart: unless-stopped
 
   ### VPN and Subcontainers
@@ -135,6 +137,8 @@ services:
       - 8118:8118 #
       - 58846:58846
       - 58946:58946
+    networks:
+      - torrent-net
     cap_add:
       - NET_ADMIN
     devices:
@@ -149,14 +153,9 @@ services:
     env_file:
       - ./env/global.env
     volumes:
-      - ${DOCKER}/deluge/config:/config
-      - ${DOCKER}/downloads:/downloads
+      - DelugeCFG:/config
+      - Downloads:/downloads
     network_mode: service:vpn
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:deluge.${DOMAIN},artemis.${DOMAIN}
-      traefik.port: 8112
     restart: unless-stopped
 
   jackett:
@@ -167,12 +166,93 @@ services:
     env_file:
       - ./env/global.env
     volumes:
-      - ${DOCKER}/jackett/config:/config
-      - /var/tmp:/downloads
+      - JackettCFG:/config
+      - TMP:/downloads
     network_mode: service:vpn
-    labels:
-      traefik.enable: true
-      traefik.frontend.redirect.entryPoint: https
-      traefik.frontend.rule: Host:jackett.${DOMAIN}
-      traefik.port: 9117
     restart: unless-stopped
+
+networks:
+  torrent-net:
+    driver: bridge
+  port-net:
+    driver: bridge
+
+volumes:
+  RadarrCFG:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS},rw,bg,intr,soft,nolock
+      device: ":${NASROOT}/radarr/config"
+  SonarrCFG:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS},rw,bg,intr,soft,nolock
+      device: ":${NASROOT}/sonarr/config"
+  JackettCFG:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS},rw,bg,intr,soft,nolock
+      device: ":${NASROOT}/jackett/config"
+  DelugeCFG:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS},rw,bg,intr,soft,nolock
+      device: ":${NASROOT}/deluge/config"
+  Downloads:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/downloads"
+  PlexTV:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/plex/library/television"
+  PlexMovies:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/plex/library/movies"
+  PlexLib:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/plex/library"
+  PlexCFG:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/plex/config"
+  TMP:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/tmp"
+  PiETC:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/pihole/etc-pihole/"
+  PiMasq:
+      driver: local
+      driver_opts:
+        type: nfs
+        o: addr=${NAS},rw,bg,intr,soft,nolock
+        device: ":${NASROOT}/pihole/etc-dnsmasq.d/"
+  PortainerDAT:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=${NAS},rw,bg,intr,soft,nolock
+      device: ":${NASROOT}/portainer/data"
