@@ -47,6 +47,8 @@ services:
       - 67:67/udp
       - 8888:80/tcp
       - 4444:443/tcp
+    networks:
+      - piHole-net
     volumes:
       - PiETC:/etc/pihole/
       - PiMasq:/etc/dnsmasq.d/
@@ -121,6 +123,7 @@ services:
       - torrent-net
       - port-net
       - plex-net
+      - piHole-net
     restart: unless-stopped
 
   ### VPN and Subcontainers
@@ -172,9 +175,13 @@ services:
     restart: unless-stopped
 
 networks:
+  piHole-net:
+    driver: bridge
   torrent-net:
     driver: bridge
   port-net:
+    driver: bridge
+  plex-net:
     driver: bridge
 
 volumes:
