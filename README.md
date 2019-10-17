@@ -16,6 +16,8 @@ mkdir /opt/docker
 
 git clone https://github.com/kernelstubbs/repository.git /opt/docker
 
+[make modifications to ENV files]
+
 cd /opt/docker
 
 docker-compose up -d
