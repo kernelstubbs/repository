@@ -3,12 +3,12 @@ version: "3.7"
 x-defaultCONF: &defaultCONF
   domainname: beowulf.cc
   restart: unless-stopped
+  env_file:
+  - ./env/global.env
 
-x-networkCONF: &networkCONF
-    driver: local
-    driver_opts:
-      type: nfs
-      o: addr=${NAS},rw,bg,intr,soft,nolock
+x-driver_opts: &driverOpts
+    type: nfs
+    o: addr=10.10.10.252,rw,bg,intr,soft,nolock
 
 services:
   plex:
@@ -16,8 +16,6 @@ services:
     image: plexinc/pms-docker
     hostname: plex
     <<: *defaultCONF
-    env_file:
-      - ./env/global.env
     ports:
       - 3005:3005/tcp
       - 8324:8324/tcp
@@ -38,11 +36,10 @@ services:
   watchtower:
     container_name: watchtower
     image: v2tec/watchtower
+    command: --cleanup --schedule "0 0 3 * * *"
     <<: *defaultCONF
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    #check at 3am only
-    command: --cleanup --schedule "0 0 3 * * *"
 
   pihole:
     container_name: pihole
@@ -68,28 +65,24 @@ services:
     image: netdata/netdata
     hostname: netdata
     <<: *defaultCONF
-    environment:
-      - PGID=999
     ports:
       - 19999:19999
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - apparmor:unconfined
     networks:
       - net-net
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
 
   sonarr:
     container_name: sonarr
     image: linuxserver/sonarr
     hostname: sonarr
     <<: *defaultCONF
-    env_file:
-      - ./env/global.env
     ports:
       - 8989:8989
     networks:
@@ -105,8 +98,6 @@ services:
     image: linuxserver/radarr
     hostname: radarr
     <<: *defaultCONF
-    env_file:
-    - ./env/global.env
     ports:
       - 7878:7878
     networks:
@@ -121,10 +112,8 @@ services:
     container_name: portainer
     image: portainer/portainer
     hostname: portainer
-    <<: *defaultCONF
     command: -H unix:///var/run/docker.sock
-    env_file:
-    - ./env/global.env
+    <<: *defaultCONF
     ports:
       - 9000:9000
     networks:
@@ -137,12 +126,8 @@ services:
     image: linuxserver/letsencrypt
     container_name: nginx
     <<: *defaultCONF
-    cap_add:
-      - NET_ADMIN
     env_file:
       - ./env/nginx.env
-    volumes:
-      - NginxCFG:/config
     ports:
       - 80:80
       - 443:443
@@ -152,8 +137,10 @@ services:
       - plex-net
       - piHole-net
       - net-net
-
-  ### VPN and Subcontainers
+    volumes:
+      - NginxCFG:/config
+    cap_add:
+      - NET_ADMIN
 
   vpn:
     container_name: vpn
@@ -165,7 +152,7 @@ services:
     ports:
       - 9117:9117 # jackett
       - 8112:8112 # deluge
-      - 8118:8118 #
+      - 8118:8118 # vpn
       - 58846:58846
       - 58946:58946
     networks:
@@ -179,27 +166,23 @@ services:
     container_name: deluge
     image: linuxserver/deluge
     <<: *defaultCONF
-    depends_on:
-      - vpn
-    env_file:
-      - ./env/global.env
     volumes:
       - DelugeCFG:/config
       - Downloads:/downloads
     network_mode: service:vpn
+    depends_on:
+      - vpn
 
   jackett:
     container_name: jackett
     image: linuxserver/jackett
     <<: *defaultCONF
-    depends_on:
-      - vpn
-    env_file:
-      - ./env/global.env
     volumes:
       - JackettCFG:/config
       - TMP:/downloads
     network_mode: service:vpn
+    depends_on:
+      - vpn
 
 networks:
   piHole-net:
@@ -214,59 +197,73 @@ networks:
     driver: bridge
 
 volumes:
-  RadarrCFG:
-    <<: *networkCONF
+  RadarrCFG: 
+    driver: local
     driver_opts:
+      <<: *driverOpts
       device: ":${NASROOT}/radarr/config"
   SonarrCFG:
-    <<: *networkCONF
+    driver: local
     driver_opts:
+      <<: *driverOpts
       device: ":${NASROOT}/sonarr/config"
   JackettCFG:
-    <<: *networkCONF
+    driver: local
     driver_opts:
+      <<: *driverOpts
       device: ":${NASROOT}/jackett/config"
   DelugeCFG:
-    <<: *networkCONF
+    driver: local
     driver_opts:
+      <<: *driverOpts
       device: ":${NASROOT}/deluge/config"
   Downloads:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/downloads"
+      <<: *driverOpts
+      device: ":${NASROOT}/downloads"
   PlexTV:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/plex/library/television"
+      <<: *driverOpts
+      device: ":${NASROOT}/plex/library/television"
   PlexMovies:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/plex/library/movies"
+      <<: *driverOpts
+      device: ":${NASROOT}/plex/library/movies"
   PlexLib:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/plex/library"
+      <<: *driverOpts
+      device: ":${NASROOT}/plex/library"
   PlexCFG:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/plex/config"
+      <<: *driverOpts
+      device: ":${NASROOT}/plex/config"
   NginxCFG:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/nginx/config"
+      <<: *driverOpts
+      device: ":${NASROOT}/nginx/config"
   TMP:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/tmp"
+      <<: *driverOpts
+      device: ":${NASROOT}/tmp"
   PiETC:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/pihole/etc-pihole/"
+      <<: *driverOpts
+      device: ":${NASROOT}/pihole/etc-pihole/"
   PiMasq:
-    <<: *networkCONF
+    driver: local
     driver_opts:
-        device: ":${NASROOT}/pihole/etc-dnsmasq.d/"
+      <<: *driverOpts
+      device: ":${NASROOT}/pihole/etc-dnsmasq.d/"
   PortainerDAT:
-    <<: *networkCONF
+    driver: local
     driver_opts:
+      <<: *driverOpts
       device: ":${NASROOT}/portainer/data"
