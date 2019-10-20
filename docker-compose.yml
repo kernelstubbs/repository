@@ -11,6 +11,33 @@ x-driver_opts: &driverOpts
     o: addr=10.10.10.252,rw,bg,intr,soft,nolock
 
 services:
+  minecraft:
+    container_name: forge
+    image: itzg/minecraft-server
+    hostname: forge
+    env_file:
+      - ./env/forge.env
+    ports:
+      - 28016:28016
+      - 25565:25565
+    networks:
+      - forge-net
+    volumes:
+      - forgeMC:/data
+    restart: unless-stopped
+
+  rcon:
+    container_name: rcon
+    image: itzg/rcon
+    hostname: rcon
+    ports:
+      - 4326:4326
+      - 4327:4327
+    networks:
+      - forge-net
+    volumes:
+      - rcon:/opt/rcon-web-admin/db
+
   plex:
     container_name: plex
     image: plexinc/pms-docker
@@ -21,7 +48,7 @@ services:
       - 8324:8324/tcp
       - 32400:32400/tcp
       - 32469:32469/tcp
-#      - 1900:1900/udp
+      - 1900:1900/udp
       - 32410:32410/udp
       - 32412:32412/udp
       - 32413:32413/udp
@@ -40,43 +67,6 @@ services:
     <<: *defaultCONF
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
-  pihole:
-    container_name: pihole
-    image: pihole/pihole
-    hostname: pihole
-    <<: *defaultCONF
-    env_file:
-      - ./env/pihole.env
-    ports:
-      - 53:53/tcp
-      - 53:53/udp
-      - 67:67/udp
-#      - 8888:80/tcp
-#      - 4444:443/tcp
-    networks:
-      - piHole-net
-    volumes:
-      - PiETC:/etc/pihole/
-      - PiMasq:/etc/dnsmasq.d/
-
-  netdata:
-    container_name: netdata
-    image: netdata/netdata
-    hostname: netdata
-    <<: *defaultCONF
-    ports:
-      - 19999:19999
-    networks:
-      - net-net
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - apparmor:unconfined
 
   sonarr:
     container_name: sonarr
@@ -135,8 +125,7 @@ services:
       - torrent-net
       - port-net
       - plex-net
-      - piHole-net
-      - net-net
+      - forge-net
     volumes:
       - NginxCFG:/config
     cap_add:
@@ -185,18 +174,26 @@ services:
       - vpn
 
 networks:
-  piHole-net:
-    driver: bridge
   torrent-net:
     driver: bridge
   port-net:
     driver: bridge
   plex-net:
     driver: bridge
-  net-net:
+  forge-net:
     driver: bridge
 
 volumes:
+  forgeMC: 
+    driver: local
+    driver_opts:
+      <<: *driverOpts
+      device: ":${NASROOT}/forge/data"
+  rcon: 
+    driver: local
+    driver_opts:
+      <<: *driverOpts
+      device: ":${NASROOT}/rcon/db"
   RadarrCFG: 
     driver: local
     driver_opts:
