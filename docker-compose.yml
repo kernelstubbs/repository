@@ -103,11 +103,11 @@ services:
     <<: *defaultCONF
     env_file: [./env/nordvpn.env]  
     ports:
-      - 9117:9117 # jackett
-      - 8112:8112 # deluge
-      - 8118:8118 # vpn
-      - 58846:58846
-      - 58946:58946
+      - "9117:9117" # jackett
+      - "8112:8112" # deluge
+      - "8118:8118" # vpn
+      - "58846:58846"
+      - "58946:58946"
     networks: [torrent-net]
     devices: [/dev/net/tun]
   deluge:
