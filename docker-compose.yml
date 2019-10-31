@@ -108,7 +108,7 @@ services:
       - port-net
       - plex-net
       - forge-net
-    volumes: [nginx_cfg:/config]
+    volumes: [NginxCFG:/config]
     cap_add: [NET_ADMIN]
   vpn:
     container_name: vpn
