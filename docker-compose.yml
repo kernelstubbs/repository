@@ -197,16 +197,6 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/tmp"
-  pi_etc:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":/volume1/docker/pihole/etc-pihole/"
-  pi_masq:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":/volume1/docker/pihole/etc-dnsmasq.d/"
   portainer_dat:
     <<: *nfsDriver
     driver_opts:
