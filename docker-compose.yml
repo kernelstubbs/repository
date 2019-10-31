@@ -17,17 +17,18 @@ services:
     container_name: forge
     image: itzg/minecraft-server
     hostname: forge
+    <<: *defaultCONF
     env_file: [./env/forge.env]
     ports:
       - "28016:28016"
       - "25565:25565"
     networks: [forge-net]
     volumes: [forgeMC:/data]
-    restart: unless-stopped
   rcon:
     container_name: rcon
     image: itzg/rcon
     hostname: rcon
+    <<: *defaultCONF
     ports:
       - "4326:4326"
       - "4327:4327"
@@ -154,79 +155,69 @@ volumes:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/forge/data"
+      device: ":/volume1/docker/forge/data"
   rcon: 
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/rcon/db"
+      device: ":/volume1/docker/rcon/db"
   RadarrCFG: 
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/radarr/config"
+      device: ":/volume1/docker/radarr/config"
   SonarrCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/sonarr/config"
+      device: ":/volume1/docker/sonarr/config"
   JackettCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/jackett/config"
+      device: ":/volume1/docker/jackett/config"
   DelugeCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/deluge/config"
+      device: ":/volume1/docker/deluge/config"
   Downloads:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/downloads"
+      device: ":/volume1/docker/downloads"
   PlexTV:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/plex/library/television"
+      device: ":/volume1/docker/plex/library/television"
   PlexMovies:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/plex/library/movies"
+      device: ":/volume1/docker/plex/library/movies"
   PlexLib:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/plex/library"
+      device: ":/volume1/docker/plex/library"
   PlexCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/plex/config"
+      device: ":/volume1/docker/plex/config"
   NginxCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/nginx/config"
+      device: ":/volume1/docker/nginx/config"
   TMP:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/tmp"
-  PiETC:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":${NASROOT}/pihole/etc-pihole/"
-  PiMasq:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":${NASROOT}/pihole/etc-dnsmasq.d/"
+      device: ":/volume1/docker/tmp"
   PortainerDAT:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":${NASROOT}/portainer/data"
+      device: ":/volume1/docker/portainer/data"
