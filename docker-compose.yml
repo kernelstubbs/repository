@@ -3,7 +3,7 @@ version: "3.7"
 
 x-defaultCONF: &defaultCONF
   domainname: beowulf.cc
-  restart: unless-stopped
+  restart: always
   env_file:
   - ./env/global.env
 x-driver_opts: &driverOpts
