@@ -25,14 +25,14 @@ services:
       - "28016:28016"
       - "25565:25565"
     networks: [forge-net]
-    volumes: [forge_mc:/data]
+    volumes: ["forge_mc:/data"]
   rcon:
     image: itzg/rcon
     ports:
       - "4326:4326"
       - "4327:4327"
     networks: [forge-net]
-    volumes: [rcon:/opt/rcon-web-admin/db]
+    volumes: ["rcon:/opt/rcon-web-admin/db"]
   plex:
     image: plexinc/pms-docker
     <<: *defaultCONF
@@ -53,7 +53,7 @@ services:
     image: v2tec/watchtower
     command: --cleanup --schedule "0 0 3 * * *"
     <<: *defaultCONF
-    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
   sonarr:
     image: linuxserver/sonarr
     <<: *defaultCONF
@@ -97,7 +97,7 @@ services:
       - port-net
       - plex-net
       - forge-net
-    volumes: [nginx_cfg:/config]
+    volumes: ["nginx_cfg:/config"]
   vpn:
     image: bubuntux/nordvpn
     <<: *defaultCONF
