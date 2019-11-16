@@ -51,12 +51,10 @@ services:
     volumes:
       - PlexCFG:/config
       - PlexLib:/data
-      - TMP:/transcode
-  watchtower:
-    container_name: watchtower
-    image: v2tec/watchtower
-    command: --cleanup --schedule "0 0 3 * * *"
-    <<: *defaultCONF
+  ouroboros:
+    container_name: ouroboros
+    image: pyouroboros/ouroboros
+    environment: [LATEST=True]
     volumes: [/var/run/docker.sock:/var/run/docker.sock]
   sonarr:
     container_name: sonarr
