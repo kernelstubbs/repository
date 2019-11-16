@@ -2,14 +2,14 @@
 version: "3.7"
 
 x-defaultCONF: &defaultCONF
-  deploy:
-    replicas: 1
-    update_config:
-      parallelism: 0
-      failure_action: rollback
-    rollback_config:
-      parallelism: 0
   env_file: [./env/global.env]
+x-deploySingle: &deploySingle
+  replicas: 1
+  update_config:
+    failure_action: rollback
+  placement:
+      constraints: [node.role == manager]
+
 x-driver_opts: &driverOpts
   type: nfs
   o: addr=10.10.10.252,rw,bg,intr,soft,nolock
@@ -17,25 +17,67 @@ x-nfs-driver: &nfsDriver
   driver: local
 
 services:
-  minecraft:
-    image: itzg/minecraft-server
-    hostname: forge
-    env_file: [./env/forge.env]
+#  minecraft:
+#    image: itzg/minecraft-server
+#    hostname: forge
+#    env_file: [./env/forge.env]
+#    ports:
+#      - "28016:28016"
+#      - "25565:25565"
+#    networks: [forge-net]
+#    volumes: ["forge_mc:/data"]
+#  rcon:
+#    image: itzg/rcon
+#    ports:
+#      - "4326:4326"
+#     - "4327:4327"
+#   networks: [forge-net]
+#    volumes: ["rcon:/opt/rcon-web-admin/db"]
+  traefik:
+    image: traefik
+    command: 
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    <<: *defaultCONF
+    deploy:
+      <<: *deploySingle
+      labels: 
+        - "traefik.enable=true"
+        - "traefik.http.routers.traefik.entrypoints=web"
+        - "traefik.http.routers.traefik.rule=PathPrefix(`/traefik`)"
+        - "traefik.http.middlewares.traefik-redirect.redirectregex.regex=^(.*)/traefik$$"
+        - "traefik.http.middlewares.traefik-redirect.redirectregex.replacement=$$1/traefik/"
+        - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik/"
+        - "traefik.http.routers.traefik.middlewares=traefik-strip,traefik-redirect"   
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
     ports:
-      - "28016:28016"
-      - "25565:25565"
-    networks: [forge-net]
-    volumes: ["forge_mc:/data"]
-  rcon:
-    image: itzg/rcon
-    ports:
-      - "4326:4326"
-      - "4327:4327"
-    networks: [forge-net]
-    volumes: ["rcon:/opt/rcon-web-admin/db"]
+      - "80:80"
+      - "8080:8080"
+    networks:
+      - torrent-net
+      - radarr-net
+      - sonarr-net
+      - port-net
+      - plex-net
+      - forge-net
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
   plex:
     image: plexinc/pms-docker
     <<: *defaultCONF
+    deploy:
+      <<: *deploySingle
+      labels: 
+        - "traefik.enable=true"
+        - "traefik.http.routers.plex.entrypoints=web"
+        - "traefik.http.routers.plex.rule=PathPrefix(`/plex`) || PathPrefix(`/web`)"
+        - "traefik.http.middlewares.plex-redirect.redirectregex.regex=^(.*)/(plex|web)$$"
+        - "traefik.http.middlewares.plex-redirect.redirectregex.replacement=$$1/web/"
+        - "traefik.http.routers.plex.middlewares=plex-redirect"
+        - "traefik.http.services.plex.loadbalancer.server.port=32400"
+        - "traefik.docker.network=homelab_plex-net"
     ports:
       - "3005:3005"
       - "8324:8324"
@@ -57,8 +99,16 @@ services:
   sonarr:
     image: linuxserver/sonarr
     <<: *defaultCONF
-    ports: ["8989:8989"]
+    deploy:
+      <<: *default-single-replica-deploy
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.sonarr.entrypoints=web"
+        - "traefik.http.routers.sonarr.rule=PathPrefix(`/sonarr`)"    
+        - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+        - "traefik.docker.network=homelab_sonarr-net"
     networks:
+      - sonarr-net
       - torrent-net
       - plex-net
     volumes:
@@ -68,8 +118,16 @@ services:
   radarr:
     image: linuxserver/radarr
     <<: *defaultCONF
-    ports: ["7878:7878"]
+    deploy:
+      <<: *default-single-replica-deploy
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.radarr.entrypoints=web"
+        - "traefik.http.routers.radarr.rule=PathPrefix(`/radarr`)"
+        - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+        - "traefik.docker.network=homelab_radarr-net"
     networks:
+      - radarr-net
       - torrent-net
       - plex-net
     volumes:
@@ -80,31 +138,45 @@ services:
     image: portainer/portainer
     command: -H unix:///var/run/docker.sock
     <<: *defaultCONF
-    ports: ["9000:9000"]
+    deploy:
+      <<: *deploySingle
+      labels:
+        - "traefik.enable=true"
+        # adding a slash to the end
+        - "traefik.http.routers.portainer.entrypoints=web"
+        - "traefik.http.routers.portainer.rule=PathPrefix(`/portainer`)"
+        - "traefik.http.middlewares.portainer-redirect.redirectregex.regex=^(.*)/portainer$$"
+        - "traefik.http.middlewares.portainer-redirect.redirectregex.replacement=$$1/portainer/"
+        - "traefik.http.middlewares.portainer-strip.stripprefix.prefixes=/portainer/"
+        - "traefik.http.routers.portainer.middlewares=portainer-strip,portainer-redirect"    
+        - "traefik.http.services.potainer.loadbalancer.server.port=9000"
+        - "traefik.docker.network=homelab_port-net"
     networks: [port-net]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_dat:/data
-  nginx:
-    image: linuxserver/letsencrypt
-    <<: *defaultCONF
-    env_file: [./env/nginx.env]
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - torrent-net
-      - port-net
-      - plex-net
-      - forge-net
-    volumes: ["nginx_cfg:/config"]
   vpn:
     image: bubuntux/nordvpn
     <<: *defaultCONF
-    env_file: [./env/nordvpn.env]  
+    env_file: [./env/nordvpn.env] 
+    deploy:
+      <<: *deploySingle
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.jackett.entrypoints=web"
+        - "traefik.http.routers.jackett.rule=PathPrefix(`/jackett`)"
+        - "traefik.http.middlewares.jackett-strip.stripprefix.prefixes=/jackett"
+        - "traefik.http.routers.jackett.middlewares=jackett-strip"      
+        - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+        - "traefik.docker.network=homelab_torrent-net"
+        - "traefik.http.routers.deluge.rule=PathPrefix(`/deluge`)"
+        - "traefik.http.middlewares.deluge-strip.stripprefix.prefixes=/deluge"
+        - "traefik.http.routers.deluge.middlewares=deluge-strip"      
+        - "traefik.http.services.deluge.loadbalancer.server.port=8112"
+        - "traefik.docker.network=homelab_torrent-net"
     ports:
-      - "9117:9117" # jackett
-      - "8112:8112" # deluge
+#      - "9117:9117" # jackett
+#      - "8112:8112" # deluge
       - "8118:8118" # vpn
       - "58846:58846"
       - "58946:58946"
@@ -113,6 +185,8 @@ services:
   deluge:
     image: linuxserver/deluge
     <<: *defaultCONF
+    deploy:
+      <<: *deploySingle
     volumes:
       - deluge_cfg:/config
       - downloads:/downloads
@@ -120,12 +194,15 @@ services:
   jackett:
     image: linuxserver/jackett
     <<: *defaultCONF
+    deploy:
+      <<: *deploySingle
     volumes:
       - jackett_cfg:/config
       - tmp:/downloads
     network_mode: service:vpn
 
 networks:
+  sonarr-net:
   torrent-net:
   port-net:
   plex-net:
