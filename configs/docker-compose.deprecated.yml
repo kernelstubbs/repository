@@ -1,0 +1,38 @@
+
+  pihole:
+    container_name: pihole
+    image: pihole/pihole
+    hostname: pihole
+    <<: *defaultCONF
+    env_file:
+      - ./env/pihole.env
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 67:67/udp
+#      - 8888:80/tcp
+#      - 4444:443/tcp
+    networks:
+      - piHole-net
+    volumes:
+      - PiETC:/etc/pihole/
+      - PiMasq:/etc/dnsmasq.d/
+
+
+  netdata:
+    container_name: netdata
+    image: netdata/netdata
+    hostname: netdata
+    <<: *defaultCONF
+    ports:
+      - 19999:19999
+    networks:
+      - net-net
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined

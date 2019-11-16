@@ -1,0 +1,262 @@
+# redirect all traffic to https
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+	server_name _;
+	return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name tartarus.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        proxy_pass http://10.10.10.10;
+        proxy_hide_header X-Frame-Options;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name rcon.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        proxy_pass http://rcon:4326;
+        proxy_hide_header X-Frame-Options;
+    }
+}
+
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+	server_name chronos.*;
+	include /config/nginx/ssl.conf;
+
+	location / {
+		include /config/nginx/proxy.conf;
+		proxy_pass https://10.10.10.252:5001;
+	}
+}
+
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+	server_name chimera.*;
+	include /config/nginx/ssl.conf;
+
+    location / {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_ssl_verify off; # No need on isolated LAN
+        proxy_pass https://10.10.10.250;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    
+        proxy_buffering off;
+        client_max_body_size 0;
+        proxy_read_timeout 36000s;
+        proxy_redirect off;
+        proxy_ssl_session_reuse off;
+    }
+
+	# ESXi
+	location /ui/ {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass https://10.10.10.250;
+        proxy_ssl_verify off; # No need on isolated LAN
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_buffering off;
+        client_max_body_size 0;
+        proxy_read_timeout 36000s;
+        proxy_redirect off;
+        proxy_ssl_session_reuse off;
+    }
+}
+
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+	server_name janus.*;
+	include /config/nginx/ssl.conf;
+	client_max_body_size 0;
+
+	location / {
+		include /config/nginx/proxy.conf;
+		proxy_pass http://10.10.10.200;
+	}
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name portainer.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://portainer:9000;
+        proxy_set_header Connection "";
+        proxy_http_version 1.1;
+        proxy_hide_header X-Frame-Options; # Possibly nott needed after Portainer 1.20.0
+    }
+
+    location /api/websocket/ {
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://portainer:9000;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_http_version 1.1;
+        proxy_hide_header X-Frame-Options; # Possibly nott needed after Portainer 1.20.0
+    }
+}
+
+server {
+	listen 443 ssl;
+	listen [::]:443 ssl;
+
+	server_name plex.*;
+
+	include /config/nginx/ssl.conf;
+
+	client_max_body_size 0;
+	proxy_redirect off;
+    proxy_buffering off;
+    location / {
+
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://plex:32400;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header X-Plex-Client-Identifier $http_x_plex_client_identifier;
+        proxy_set_header X-Plex-Device $http_x_plex_device;
+        proxy_set_header X-Plex-Device-Name $http_x_plex_device_name;
+        proxy_set_header X-Plex-Platform $http_x_plex_platform;
+        proxy_set_header X-Plex-Platform-Version $http_x_plex_platform_version;
+        proxy_set_header X-Plex-Product $http_x_plex_product;
+        proxy_set_header X-Plex-Token $http_x_plex_token;
+        proxy_set_header X-Plex-Version $http_x_plex_version;
+        proxy_set_header X-Plex-Nocache $http_x_plex_nocache;
+        proxy_set_header X-Plex-Provides $http_x_plex_provides;
+        proxy_set_header X-Plex-Device-Vendor $http_x_plex_device_vendor;
+        proxy_set_header X-Plex-Model $http_x_plex_model;
+	}
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name sonarr.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://sonarr:8989;
+    }
+
+    location ~ (/sonarr)?/api {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://sonarr:8989;
+   }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name radarr.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://radarr:7878;
+    }
+
+    location ~ (/radarr)?/api {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        proxy_pass http://radarr:7878;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name deluge.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        set $upstream_deluge vpn;
+        proxy_pass http://$upstream_deluge:8112;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name jackett.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    location / {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        set $upstream_jackett vpn;
+        proxy_pass http://$upstream_jackett:9117;
+    }
+
+    location ~ (/jackett)?/(api|dl) {
+        include /config/nginx/proxy.conf;
+        resolver 127.0.0.11 valid=30s;
+        set $upstream_jackett vpn;
+        proxy_pass http://$upstream_jackett:9117;
+    }
+}
+# enable subdomain method reverse proxy confs
+include /config/nginx/proxy-confs/*.subdomain.conf;
+# enable proxy cache for auth
+proxy_cache_path cache/ keys_zone=auth_cache:10m;
