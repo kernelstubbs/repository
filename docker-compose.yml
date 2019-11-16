@@ -52,7 +52,6 @@ services:
     volumes:
       - PlexCFG:/config
       - PlexLib:/data
-      - TMP:/transcode
   watchtower:
     container_name: watchtower
     image: v2tec/watchtower
