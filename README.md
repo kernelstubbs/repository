@@ -8,3 +8,12 @@ cd /opt/docker
 ########################################
 docker stack up -c docker-compose.yml homelab
 ```
+
+
+
+TO-DO
+
+Add traefik for pihole, esxi and NAS
+Fix rcon API for traefik
+Fix deluge api for traefik
+Replace watchtower with something that doesn't crash containers in VPN networks
