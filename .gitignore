@@ -1,5 +1,4 @@
 .DS_Store
-configs/ENV Mask
+configs/*
 .vscode/settings.json
 .gitignore
-configs/CoreOS - Initial Config

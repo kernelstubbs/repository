@@ -41,18 +41,28 @@ services:
       - "--providers.docker.swarmMode=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # LetsEncrypt
+      - "--certificatesresolvers.CFWildcard.acme.email=${CF_API_EMAIL}"
+      - "--certificatesresolvers.CFWildcard.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.CFWildcard.acme.storage=/etc/traefik/acme.json"
     <<: *defaultCONF
     deploy:
       <<: *deploySingle
       labels: 
         - "traefik.enable=true"
-        - "traefik.http.routers.traefik.entrypoints=web"
-        - "traefik.http.routers.traefik.rule=PathPrefix(`/traefik`)"
-        - "traefik.http.middlewares.traefik-redirect.redirectregex.regex=^(.*)/traefik$$"
-        - "traefik.http.middlewares.traefik-redirect.redirectregex.replacement=$$1/traefik/"
-        - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik/"
-        - "traefik.http.routers.traefik.middlewares=traefik-strip,traefik-redirect"   
+        - "traefik.http.routers.traefik.rule=Host(`traefik.beowulf.cc`)"
         - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+        - "traefik.http.services.traefik.loadbalancer.server.scheme=http"
+        # HTTP ==> HTTPS
+        - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:[a-z-.]+}`)"
+        - "traefik.http.routers.http-catchall.entrypoints=web"
+        - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+        - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+        # CF Wildcard
+        - "traefik.http.routers.traefik.tls.domains[0].main=beowulf.cc"
+        - "traefik.http.routers.traefik.tls.domains[0].sans=*.beowulf.cc"
+        - "traefik.http.routers.traefik.tls.certresolver=CFWildcard"
     ports:
       - "80:80"
       - "8080:8080"
@@ -63,7 +73,16 @@ services:
       - port-net
       - plex-net
       - forge-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik_cert:/etc/traefik/traefik.json
+  shepherd:
+    image: mazzolino/shepherd
+    deploy:
+      <<: *deploySingle
+    environment: [SLEEP_TIME=8h]
     volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    networks: [shepherd-net]
   plex:
     image: plexinc/pms-docker
     <<: *defaultCONF
@@ -71,11 +90,9 @@ services:
       <<: *deploySingle
       labels: 
         - "traefik.enable=true"
-        - "traefik.http.routers.plex.entrypoints=web"
-        - "traefik.http.routers.plex.rule=PathPrefix(`/plex`) || PathPrefix(`/web`)"
-        - "traefik.http.middlewares.plex-redirect.redirectregex.regex=^(.*)/(plex|web)$$"
-        - "traefik.http.middlewares.plex-redirect.redirectregex.replacement=$$1/web/"
-        - "traefik.http.routers.plex.middlewares=plex-redirect"
+        - "traefik.http.routers.plex.rule=Host(`plex.beowulf.cc`)"
+        - "traefik.http.routers.plex.entrypoints=websecure"
+        - "traefik.http.routers.plex.tls.certresolver=CFWildcard"
         - "traefik.http.services.plex.loadbalancer.server.port=32400"
         - "traefik.docker.network=homelab_plex-net"
     ports:
@@ -90,21 +107,16 @@ services:
     volumes: 
       - plex_cfg:/config
       - plex_lib:/data
-      - tmp:/transcode
-  watchtower:
-    image: v2tec/watchtower
-    command: --cleanup --schedule "0 0 3 * * *"
-    <<: *defaultCONF
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
   sonarr:
     image: linuxserver/sonarr
     <<: *defaultCONF
     deploy:
-      <<: *default-single-replica-deploy
+      <<: *deploySingle
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.sonarr.entrypoints=web"
-        - "traefik.http.routers.sonarr.rule=PathPrefix(`/sonarr`)"    
+        - "traefik.http.routers.sonarr.rule=Host(`sonarr.beowulf.cc`)"
+        - "traefik.http.routers.sonarr.entrypoints=websecure"
+        - "traefik.http.routers.sonarr.tls.certresolver=CFWildcard"
         - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
         - "traefik.docker.network=homelab_sonarr-net"
     networks:
@@ -119,11 +131,12 @@ services:
     image: linuxserver/radarr
     <<: *defaultCONF
     deploy:
-      <<: *default-single-replica-deploy
+      <<: *deploySingle
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.radarr.entrypoints=web"
-        - "traefik.http.routers.radarr.rule=PathPrefix(`/radarr`)"
+        - "traefik.http.routers.radarr.rule=Host(`radarr.beowulf.cc`)"
+        - "traefik.http.routers.radarr.entrypoints=websecure"
+        - "traefik.http.routers.radarr.tls.certresolver=CFWildcard"
         - "traefik.http.services.radarr.loadbalancer.server.port=7878"
         - "traefik.docker.network=homelab_radarr-net"
     networks:
@@ -142,14 +155,10 @@ services:
       <<: *deploySingle
       labels:
         - "traefik.enable=true"
-        # adding a slash to the end
-        - "traefik.http.routers.portainer.entrypoints=web"
-        - "traefik.http.routers.portainer.rule=PathPrefix(`/portainer`)"
-        - "traefik.http.middlewares.portainer-redirect.redirectregex.regex=^(.*)/portainer$$"
-        - "traefik.http.middlewares.portainer-redirect.redirectregex.replacement=$$1/portainer/"
-        - "traefik.http.middlewares.portainer-strip.stripprefix.prefixes=/portainer/"
-        - "traefik.http.routers.portainer.middlewares=portainer-strip,portainer-redirect"    
-        - "traefik.http.services.potainer.loadbalancer.server.port=9000"
+        - "traefik.http.routers.portainer.rule=Host(`portainer.beowulf.cc`)"
+        - "traefik.http.routers.portainer.entrypoints=websecure"
+        - "traefik.http.routers.portainer.tls.certresolver=CFWildcard"
+        - "traefik.http.services.portainer.loadbalancer.server.port=9000"
         - "traefik.docker.network=homelab_port-net"
     networks: [port-net]
     volumes:
@@ -163,21 +172,23 @@ services:
       <<: *deploySingle
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.jackett.entrypoints=web"
-        - "traefik.http.routers.jackett.rule=PathPrefix(`/jackett`)"
-        - "traefik.http.middlewares.jackett-strip.stripprefix.prefixes=/jackett"
-        - "traefik.http.routers.jackett.middlewares=jackett-strip"      
-        - "traefik.http.services.jackett.loadbalancer.server.port=9117"
         - "traefik.docker.network=homelab_torrent-net"
-        - "traefik.http.routers.deluge.rule=PathPrefix(`/deluge`)"
-        - "traefik.http.middlewares.deluge-strip.stripprefix.prefixes=/deluge"
-        - "traefik.http.routers.deluge.middlewares=deluge-strip"      
+        # deluge
+        - "traefik.http.routers.deluge.rule=Host(`deluge.beowulf.cc`)"
+        - "traefik.http.routers.deluge.entrypoints=websecure"
+        - "traefik.http.routers.deluge.tls.certresolver=CFWildcard"
         - "traefik.http.services.deluge.loadbalancer.server.port=8112"
-        - "traefik.docker.network=homelab_torrent-net"
+        # jackett
+        - "traefik.http.routers.jackett.rule=Host(`jackett.beowulf.cc`)"
+        - "traefik.http.routers.jackett.entrypoints=websecure"
+        - "traefik.http.routers.jackett.tls.certresolver=CFWildcard"
+        - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+        # vpn
+        - "traefik.http.routers.vpn.rule=Host(`vpn.beowulf.cc`)"
+        - "traefik.http.routers.vpn.entrypoints=websecure"
+        - "traefik.http.routers.vpn.tls.certresolver=CFWildcard"
+        - "traefik.http.services.vpn.loadbalancer.server.port=8118"
     ports:
-#      - "9117:9117" # jackett
-#      - "8112:8112" # deluge
-      - "8118:8118" # vpn
       - "58846:58846"
       - "58946:58946"
     networks: [torrent-net]
@@ -202,7 +213,9 @@ services:
     network_mode: service:vpn
 
 networks:
+  shepherd-net:
   sonarr-net:
+  radarr-net:
   torrent-net:
   port-net:
   plex-net:
@@ -264,11 +277,6 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/plex/config"
-  nginx_cfg:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":/volume1/docker/nginx/config"
   tmp:
     <<: *nfsDriver
     driver_opts:
@@ -279,3 +287,8 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/portainer/data"
+  traefik_cert:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ":/volume1/docker/traefik/traefik.json"
