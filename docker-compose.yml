@@ -47,6 +47,7 @@ services:
       - "--certificatesresolvers.CFWildcard.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.CFWildcard.acme.storage=/etc/traefik/acme.json"
     <<: *defaultCONF
+    env_file: [./env/traefik.env] 
     deploy:
       <<: *deploySingle
       labels: 
@@ -65,7 +66,7 @@ services:
         - "traefik.http.routers.traefik.tls.certresolver=CFWildcard"
     ports:
       - "80:80"
-      - "8080:8080"
+      - "443:443"
     networks:
       - torrent-net
       - radarr-net
@@ -75,7 +76,7 @@ services:
       - forge-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - traefik_cert:/etc/traefik/traefik.json
+      - traefik_cert:/etc/traefik
   shepherd:
     image: mazzolino/shepherd
     deploy:
@@ -147,6 +148,14 @@ services:
       - radarr_cfg:/config
       - plex_movies:/movies
       - downloads:/downloads
+  portainer_agent:
+    image: portainer/agent
+    deploy:
+      <<: *deploySingle    
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks: [port-net]
   portainer:
     image: portainer/portainer
     command: -H unix:///var/run/docker.sock
@@ -291,4 +300,4 @@ volumes:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/traefik/traefik.json"
+      device: ":/volume1/docker/traefik"
