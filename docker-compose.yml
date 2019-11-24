@@ -26,14 +26,15 @@ services:
 ##
 ########################################################################
   traefik:
+    container_name: traefik
     image: traefik
+    hostname: traefik
     <<: *defaultCONF
     env_file: [./env/traefik.env]
     command: 
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.file.filename=/etc/traefik/conf.yml"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       # LetsEncrypt
@@ -59,6 +60,7 @@ services:
       - "443:443"
     networks:
       - torrent-net
+      - piHole-net
       - port-net
       - plex-net
       - forge-net
@@ -78,12 +80,11 @@ services:
       - "traefik.http.routers.pihole.entrypoints=websecure"
       - "traefik.http.routers.pihole.tls.certresolver=CFWildcard"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
+      - "traefikpihole.docker.network=docker_piHole-net"
     ports:
       - 53:53/tcp
       - 53:53/udp
       - 67:67/udp
-#      - 8888:80/tcp
-#      - 4444:443/tcp
     networks:
       - piHole-net
     volumes:
@@ -101,7 +102,7 @@ services:
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.routers.portainer.tls.certresolver=CFWildcard"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-#    ports: ["9000:9000"]
+      - "traefikpihole.docker.network=docker_port-net"
     networks: [port-net]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -129,7 +130,7 @@ services:
     <<: *defaultCONF
     env_file: [./env/forge.env]
     ports:
-#      - "28016:28016"
+      - "28016:28016"
       - "25565:25565"
     networks: [forge-net]
     volumes: [forgeMC:/data]
@@ -144,9 +145,9 @@ services:
       - "traefik.http.routers.rcon.entrypoints=websecure"
       - "traefik.http.routers.rcon.tls.certresolver=CFWildcard"
       - "traefik.http.services.rcon.loadbalancer.server.port=4326"
-#    ports:
-#      - "4326:4326"
-#      - "4327:4327"
+      - "traefikpihole.docker.network=docker_forge-net"
+    ports:
+      - "4327:4327"
     networks: [forge-net]
     volumes: [rcon:/opt/rcon-web-admin/db]
 
@@ -169,7 +170,7 @@ services:
 ########################################################################
   plex:
     container_name: plex
-    image: plexinc/pms-docker
+    image: linuxserver/plex
     hostname: plex
     <<: *defaultCONF
     labels:
@@ -178,14 +179,16 @@ services:
       - "traefik.http.routers.plex.entrypoints=websecure"
       - "traefik.http.routers.plex.tls.certresolver=CFWildcard"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefikpihole.docker.network=docker_plex-net"
     ports:
-      - "3005:3005"
-      - "8324:8324"
-#      - "32400:32400"
-      - "32469:32469"
       - "1900:1900/udp"
+      - "3005:3005/tcp"
+      - "5353:5353/udp"
+      - "8324:8324/tcp"
       - "32410:32410/udp"
       - "32412-32414:32412-32414/udp"
+      - "32469:32469"
+      - "32469:32469/udp"
     networks: [plex-net]
     volumes:
       - PlexCFG:/config
@@ -201,7 +204,7 @@ services:
       - "traefik.http.routers.radarr.entrypoints=websecure"
       - "traefik.http.routers.radarr.tls.certresolver=CFWildcard"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
-#    ports: ["7878:7878"]
+      - "traefikpihole.docker.network=docker_torrent-net"
     networks:
       - torrent-net
       - plex-net
@@ -220,7 +223,7 @@ services:
       - "traefik.http.routers.sonarr.entrypoints=websecure"
       - "traefik.http.routers.sonarr.tls.certresolver=CFWildcard"
       - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
-#    ports: ["8989:8989"]
+      - "traefikpihole.docker.network=docker_torrent-net"
     networks:
       - torrent-net
       - plex-net
@@ -240,31 +243,28 @@ services:
     hostname: vpn
     <<: *defaultCONF
     env_file: [./env/nordvpn.env]
-      labels:
-        - "traefik.enable=true"
-        - "traefik.docker.network=homelab_torrent-net"
-        # deluge
-        - "traefik.http.routers.deluge.rule=Host(`deluge.beowulf.cc`)"
-        - "traefik.http.routers.deluge.entrypoints=websecure"
-        - "traefik.http.routers.deluge.tls.certresolver=CFWildcard"
-        - "traefik.http.routers.deluge.service=deluge"
-        - "traefik.http.services.deluge.loadbalancer.server.port=8112"
-        # jackett
-        - "traefik.http.routers.jackett.rule=Host(`jackett.beowulf.cc`)"
-        - "traefik.http.routers.jackett.entrypoints=websecure"
-        - "traefik.http.routers.jackett.tls.certresolver=CFWildcard"
-        - "traefik.http.routers.jackett.service=jackett"
-        - "traefik.http.services.jackett.loadbalancer.server.port=9117"
-        # vpn
-        - "traefik.http.routers.vpn.rule=Host(`vpn.beowulf.cc`)"
-        - "traefik.http.routers.vpn.entrypoints=websecure"
-        - "traefik.http.routers.vpn.tls.certresolver=CFWildcard"
-        - "traefik.http.routers.vpn.service=vpn"
-        - "traefik.http.services.vpn.loadbalancer.server.port=8118"
+    labels:
+      - "traefik.enable=true"
+      - "traefikpihole.docker.network=docker_torrent-net"
+      # deluge
+      - "traefik.http.routers.deluge.rule=Host(`deluge.beowulf.cc`)"
+      - "traefik.http.routers.deluge.entrypoints=websecure"
+      - "traefik.http.routers.deluge.tls.certresolver=CFWildcard"
+      - "traefik.http.routers.deluge.service=deluge"
+      - "traefik.http.services.deluge.loadbalancer.server.port=8112"
+      # jackett
+      - "traefik.http.routers.jackett.rule=Host(`jackett.beowulf.cc`)"
+      - "traefik.http.routers.jackett.entrypoints=websecure"
+      - "traefik.http.routers.jackett.tls.certresolver=CFWildcard"
+      - "traefik.http.routers.jackett.service=jackett"
+      - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+      # vpn
+      - "traefik.http.routers.vpn.rule=Host(`vpn.beowulf.cc`)"
+      - "traefik.http.routers.vpn.entrypoints=websecure"
+      - "traefik.http.routers.vpn.tls.certresolver=CFWildcard"
+      - "traefik.http.routers.vpn.service=vpn"
+      - "traefik.http.services.vpn.loadbalancer.server.port=8118"
     ports:
-#      - "9117:9117" # jackett
-#      - "8112:8112" # deluge
-#      - "8118:8118" # vpn
       - "58846:58846"
       - "58946:58946"
     networks: [torrent-net]
@@ -293,6 +293,7 @@ services:
     
 networks:
   forge-net:
+  piHole-net:
   port-net:
   plex-net:
   torrent-net:
