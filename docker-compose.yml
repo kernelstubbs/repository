@@ -318,6 +318,16 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/jackett/config"
+  piETC:
+    <<: *nfsDriver
+    driver_opts:
+    <<: *driverOpts
+    device: ":/volume1/docker/pihole/etc-pihole"
+  piMasq:
+    <<: *nfsDriver
+    driver_opts:
+    <<: *driverOpts
+    device: ":/volume1/docker/pihole/dnsmasq.d"
   PlexCFG:
     <<: *nfsDriver
     driver_opts:
