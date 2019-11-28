@@ -1,55 +1,37 @@
 #!/bin/bash
 
+workingDIR = "/opt/docker/homelab"
+
 # test for root and exit
 [ "$EUID" -ne 0 ] && echo "Please run as root" && exit
 # Assuming GIT is installed and repo is pulled already...but if the code is copypasted here it be
 [ -x "$(command -v git)" ] || yum install git -y
 # Clone the repo
-[ "$(ls -A /opt/docker/homelab)" ] || git clone https://github.com/kernelstubbs/repository.git /opt/docker/homelab
+[ "$(ls -A $workingDIR)" ] || git clone https://github.com/kernelstubbs/repository.git $workingDIR
 
 if ! [ -x "$(command -v docker-compose)" ]
 then
-    if ! test -f "/opt/bin"
-    then 
-        echo hurrrdurrr
-        #mkdir -p /opt/bin
-        if ! echo "$PATH"|grep -q "/opt/bin"
-        then 
-            echo hurderrrrr
-            #PATH=$PATH:/opt/bin
-        fi
-    fi
+    # See if /opt/bin exists and if it doesn't, create and add to path
+    test -f "/opt/bin" || mkdir -p /opt/bin
+    echo "$PATH"|grep -q "/opt/bin" || PATH=$PATH:/opt/bin
+  
     version=curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/docker/compose/releases/latest | sed 's#.*tag/##g'
     curl -L "https://github.com/docker/compose/releases/download/$version/docker-compose-$(uname -s)-$(uname -m)" -o /opt/bin/docker-compose
     chmod +x /opt/bin/docker-compose
 fi
 
-function validate_secret () {
-    IFS='-' read -r -a secArray <<< "$1"
-    secType=${secArray[0]}
-    secTarget=${secArray[1]}
-    secVal=${secArray[2]}
-    case $secType in
-        env) echo "$1 : environment variable"
-           ;;
-        sec) echo "$1 : secret"
-           ;;
-    esac
-    #sed 's/word1/word2/g'
-
-    #if ! grep -Fq $1 "./.env"; then
-    #    echo
-    #    echo $1 does not exist
-    #    read -p 'Secret: ' secret
-    #    echo "$1=$secret" >> ./.env
-    #fi
-}
-
-# Find any .env ${#######} Vars in docker-compose.yml and populate them
-dotEnv=($(grep '\${.*}' "/opt/docker/homelab/docker-compose.yml"))
+# Find any .env ${#######} Vars in docker-compose.yml and populate them in ./.env
+dotEnv=$(grep '\${.*}' "$workingDIR/docker-compose.yml")
+echo $dotEnv && test -f "$workingDIR/.env" || touch "$workingDIR/.env"
+for secret in $dotEnv
+do
+    secName=$(echo $secret | cut -d "{" -f2 | cut -d "}" -f1)
+    read -p "Enter value for \${$secName}: " secVal
+    echo "$secName=$secVal" >> "$workingDIR/.env"
+done
 
 # Find any empty values in ./env/*.env and change them
-envFiles=/opt/docker/homelab/env/*.env
+envFiles=$workingDIR/env/*.env
 for file in $envFiles
 do
     # || prevents last line from being skipped if it lacks `n
@@ -63,28 +45,35 @@ do
             then
                 varTarget=$(echo $file|rev|cut -d'/' -f1|rev)
                 varName=$(echo $line|tr -d '#','=')
-                #read -p "Enter value for $varTarget - $varName: " varValue </dev/tty
-                #sed -i '' "s/$line/$varName=$varValue/g" $file
-                echo $line
+                read -p "Enter value for $varTarget - $varName: " varValue </dev/tty
+                sed -i '' "s/$line/$varName=$varValue/g" $file
             fi
         fi
-    done <$file # file
+    done <$file
 done
 
-echo ${secrets[1]}
 
-secrets=( \
-    "env-global-TZ" \
-    "env-pihole-WEBPASSWORD" \
-    "env-traefik-CF_API_KEY" \
-    "env-plex-PLEX_CLAIM" \
-    "sec-traefik-SSH"
-    )
-    
+# for the eventuality of swarm mode...
 
-if test -f "./.env"; then
-    touch "./.env"
-fi
+#secrets=( \
+#    "env_traefik_SECRET_1" \
+#    "sec_global_SECRET_2"\
+#    )
+function validate_secret () {
+    IFS='-' read -r -a secArray <<< "$1"
+    secType=${secArray[0]}
+    secTarget=${secArray[1]}
+    secVal=${secArray[2]}
+    case $secType in
+        env) echo "$1 : environment variable"
+           ;;
+        sec) echo "$1 : secret"
+           ;;
+    esac
+
+    # pseudo code
+    # for each secret do docker secret create secret secVal blah blah blah
+}
 
 for i in ${secrets[@]}
 do
