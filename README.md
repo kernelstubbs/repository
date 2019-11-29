@@ -13,26 +13,11 @@ vmkfstools -i coreos_production_vmware_insecure_image.vmdk coreos.vmdk -d thin -
 ```sh
 ssh -i <path_to_key>/insecure_ssh_key core@<your_coreos1_ip>
 ```
-## Install Docker-Compose
+## Pull repo and initialize compose file
 ```sh
-sudo su -
-mkdir -p /opt/bin
-PATH=$PATH:/opt/bin
-sudo curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /opt/bin/docker-compose
-chmod +x /opt/bin/docker-compose
-mkdir /opt/docker
-git clone https://github.com/kernelstubbs/repository.git /opt/docker
+git clone https://github.com/kernelstubbs/repository.git /opt/docker/homelab
+sudo sh /opt/docker/homelab/docker-init.sh
 ```
-## Make modifications to ENV files
-
-1. nordvpn.env USER/PASS
-2. plex.env PLEX_CLAIM
-
-```sh
-cd /opt/docker
-docker-compose up -d
-```
-
 
 ## Links
 

@@ -23,14 +23,12 @@ else
 fi
 
 # Test for and install docker-compose in /opt/bin and add it to the path (since running in su, path may need to be modified per-user)
-if ! [ -x "$(command -v docker-compose)" ]
-then
+composeVer=$(curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/docker/compose/releases/latest | sed 's#.*tag/##g')
+if [ -x "$(command -v docker-compose)" ] | [ $(docker-compose version --short) -eq $composeVer ]; then
     # See if /opt/bin exists and if it doesn't, create and add to path
     test -f "/opt/bin" || mkdir -p /opt/bin
     echo "$PATH"|grep -q "/opt/bin" || PATH=$PATH:/opt/bin
-  
-    version=curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/docker/compose/releases/latest | sed 's#.*tag/##g'
-    curl -L "https://github.com/docker/compose/releases/download/$version/docker-compose-$(uname -s)-$(uname -m)" -o /opt/bin/docker-compose
+    curl -L "https://github.com/docker/compose/releases/download/$composeVer/docker-compose-$(uname -s)-$(uname -m)" -o /opt/bin/docker-compose
     chmod +x /opt/bin/docker-compose
 fi
 
