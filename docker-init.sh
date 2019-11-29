@@ -7,8 +7,20 @@ workingDIR="/opt/docker/homelab"
 [ "$EUID" -ne 0 ] && echo "Please run as root" && exit
 # Assuming GIT is installed and repo is pulled already...but if the code is copypasted here it be
 [ -x "$(command -v git)" ] || yum install git -y
-# Clone the repo if the working directory isn't populated
-[ "$(ls -A $workingDIR)" ] || git clone https://github.com/kernelstubbs/repository.git $workingDIR
+# Clone the repo if the working directory is empty, rest if it's not
+if [ "$(ls -A $workingDIR)" ]; then
+    read -r -p "Reset repo to default? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY]) 
+            git -C $workingDIR fetch --all
+            git -C $workingDIR reset --hard origin/master
+            ;;
+        *)
+            ;;
+    esac
+else   
+    git clone https://github.com/kernelstubbs/repository.git $workingDIR
+fi
 
 # Test for and install docker-compose in /opt/bin and add it to the path (since running in su, path may need to be modified per-user)
 if ! [ -x "$(command -v docker-compose)" ]
@@ -29,23 +41,24 @@ answerFile="$workingDIR/answerfile.csv"
 # Find any .env ${#######} Vars in docker-compose.yml and populate them in ./.env
 dotEnv=$(grep '\${.*}' "$workingDIR/docker-compose.yml")
 dotEnvFile="$workingDIR/.env"
+[ -f $dotEnvFile ] || touch $dotEnvFile
 
 for secret in $dotEnv
 do
     secName=$(echo $secret | cut -d "{" -f2 | cut -d "}" -f1)
-    secVal=""
     ansVal=$(grep "ENV,$secName," $answerFile)
     envVal=$(grep "$secName=" $dotEnvFile )
 
-    echo $envVal
     if ! test -z "$ansVal"; then
         echo "Value for \${$secName} found in answer file"
         IFS=',' read -ra array <<< "$ansVal"
         secVal=${array[2]}
-    elif test -z "$envVal"; then
-        read -p "Enter value for \${$secName}: " secVal
+    elif ! test -z "$envVal"; then
+        echo "Value for \${$secName} found in .env file"
+        IFS='=' read -ra array <<< "$envVal"
+        secVal=${array[1]}
     else
-        echo poop
+        read -p "Enter value for \${$secName}: " secVal
     fi
     [ -z "$envVal" ] && echo "$secName=$secVal" >> $dotEnvFile # Add to .env if it's not already there
     [ -z "$ansVal" ] && echo "ENV,$secName,$secVal" >> $answerFile # Add to answer file if it's not already there
@@ -59,47 +72,25 @@ do
     while read line || [[ -n "$line" ]]
     do
         # skip commented lines
-        if ! grep -q '^#' <<< "$line"
-        then
-            # if the line ends in # or = we're going to assume it needs populating.
-            if grep -Eq '#$|=$' <<< "$line"
-            then
-                # strip the path from the file name for cleanliness
-                varTarget=$(echo $file|rev|cut -d'/' -f1|rev)
-                # strip '=' and '#' from the line to get the variable name
-                varName=$(echo $line|tr -d '#','=')
-                read -p "Enter value for $varTarget - $varName: " varValue </dev/tty
+        grep -q '^#' <<< "$line" && continue
+        # if the line ends in # or = we're going to assume it needs populating.
+        if grep -Eq '#$|=$' <<< "$line"; then
+            # strip the path from the file name for cleanliness
+            varTarget=$(echo $file|rev|cut -d'/' -f1|rev)
+            # strip '=' and '#' from the line to get the variable name
+            varName=$(echo $line|tr -d '#','=')
+            # check the answewr file to see if a value exists
+            ansVal=$(grep "$varTarget,$varName," $answerFile)
+            if ! test -z "$ansVal"; then
+                echo "Value for $varName found in answer file"
+                IFS=',' read -ra array <<< "$ansVal"
+                varVal=${array[2]}
+            else
+                read -p "Enter value for $varTarget - $varName: " varVal </dev/tty
                 # replace the line with user input
-                sed -i '' "s/$line/$varName=$varValue/g" $file
             fi
+            sed -i '' "s/$line/$varName=$varVal/g" $file
+            [ -z "$ansVal" ] && echo "$varTarget,$varName,$varVal" >> $answerFile # Add to answer file if it's not already there
         fi
     done <$file
 done
-
-
-# for the eventuality of swarm mode...
-
-#secrets=( \
-#    "env_traefik_SECRET_1" \
-#    "sec_global_SECRET_2"\
-#    )
-function validate_secret () {
-    IFS='-' read -r -a secArray <<< "$1"
-    secType=${secArray[0]}
-    secTarget=${secArray[1]}
-    secVal=${secArray[2]}
-    case $secType in
-        env) echo "$1 : environment variable"
-           ;;
-        sec) echo "$1 : secret"
-           ;;
-    esac
-
-    # pseudo code
-    # for each secret do docker secret create secret secVal blah blah blah
-}
-
-#for i in ${secrets[@]}
-#do
-#    validate_secret $i
-#done
