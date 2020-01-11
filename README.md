@@ -1,4 +1,11 @@
 # repository
+## Requirements
+
+1. Domain Name
+2. Cloudflare DNS and API token
+3. NordVPN Account
+4. Plex Account/Claim Token
+
 ## Install CoreOS to ESXi
 
 1. In ESXi create CoreOS container with no HDD and 2GB of RAM

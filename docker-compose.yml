@@ -8,8 +8,6 @@ x-defaultCONF: &defaultCONF
     - "PUID=1026"
     - "PGID=101"
   restart: always
-  labels:
-    - com.centurylinklabs.watchtower.enable="true"
     
 
 x-driver_opts: &driverOpts
@@ -47,6 +45,7 @@ services:
       - "--certificatesresolvers.CFWildcard.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.CFWildcard.acme.storage=/etc/traefik/acme.json"
     labels: 
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.beowulf.cc`)"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
@@ -65,11 +64,13 @@ services:
       - "80:80"
       - "443:443"
     networks:
-      - torrent-net
+      - guac-net
       - piHole-net
       - port-net
+      - postgres-net
       - plex-net
-      - forge-net
+      - torrent-net
+#      - forge-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - traefikETC:/etc/traefik
@@ -81,6 +82,7 @@ services:
     env_file:
       - ./env/pihole.env
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       # domain mapping
       - "traefik.enable=true"
       - "traefik.http.routers.pihole.rule=Host(`pihole.beowulf.cc`) || Host(`tartarus.beowulf.cc`)"
@@ -89,6 +91,7 @@ services:
       - "traefik.http.routers.pihole.tls.domains[0].sans=*.beowulf.cc"
       - "traefik.http.routers.pihole.tls.certresolver=CFWildcard"
       - "traefik.http.routers.pihole.service=pihole"
+      - "traefik.http.routers.pihole.middlewares=piholeadmin"
       # pi.hole mapping (no ssl)
       - "traefik.http.routers.pidothole.rule=Host(`pi.hole`)"
       - "traefik.http.routers.pidothole.entrypoints=web"
@@ -96,6 +99,11 @@ services:
       - "traefik.http.routers.pidothole.priority=2"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
       - "traefik.docker.network=docker_piHole-net"
+      # add admin to path
+      - traefik.http.middlewares.piholeadmin.replacepathregex.regex=^/((?i:(admin)/{0,1}|.{0})(.*))
+      - traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3
+    dns:
+      - 127.0.0.1
     ports:
       - 53:53/tcp
       - 53:53/udp
@@ -112,6 +120,7 @@ services:
     command: -H unix:///var/run/docker.sock
     <<: *defaultCONF
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       - "traefik.http.routers.portainer.rule=Host(`portainer.beowulf.cc`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
@@ -129,7 +138,64 @@ services:
     image: v2tec/watchtower
     command: --cleanup --schedule "0 0 3 * * *" --label-enable
     <<: *defaultCONF
+    labels:
+    - "com.centurylinklabs.watchtower.enable=true"
     volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    
+########################################################################
+##
+##          Access
+##
+##    Guacamole
+##    Guacd
+##    Postgresql
+##    
+##
+########################################################################
+  guacamole:
+    container_name: guacamole
+    image: guacamole/guacamole
+    hostname: guacamole
+    <<: *defaultCONF
+    env_file: [./env/guacamole.env]
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.guacamole.rule=Host(`guacamole.beowulf.cc`)"
+      - "traefik.http.routers.guacamole.entrypoints=websecure"
+      - "traefik.http.routers.guacamole.tls.domains[0].main=beowulf.cc"
+      - "traefik.http.routers.guacamole.tls.domains[0].sans=*.beowulf.cc"
+      - "traefik.http.routers.guacamole.tls.certresolver=CFWildcard"
+      - "traefik.http.services.guacamole.loadbalancer.server.port=8080"
+      - "traefik.http.routers.guacamole.middlewares=guacamole"
+      - "traefik.docker.network=docker_guac-net"
+      # add guacamole to path
+      - traefik.http.middlewares.guacamole.replacepathregex.regex=^/((?i:(guacamole)/{0,1}|.{0})(.*))
+      - traefik.http.middlewares.guacamole.replacepathregex.replacement=/guacamole/$$3
+    networks:
+      - guac-net
+      - postgres-net
+    depends_on:
+      - guacd
+      - postgres
+  guacd:
+    container_name: guacd
+    image: guacamole/guacd
+    <<: *defaultCONF
+    hostname: guacd
+    networks: [guac-net]
+    volumes: 
+      - guacDrive:/drive:rw
+      - guacRecord:/record:rw
+  postgres:
+    container_name: postgres
+    image: postgres
+    <<: *defaultCONF
+    env_file: [./env/guacamole.env]
+    networks: [postgres-net]
+    volumes:
+      - guacData:/var/lib/postgresql/data:rw
+      - guacInit:/docker-entrypoint-initdb.d:ro
 
 ########################################################################
 ##
@@ -140,42 +206,42 @@ services:
 ##    
 ##
 ########################################################################
-  minecraft:
-    container_name: forge
-    image: itzg/minecraft-server
-    hostname: forge
-    <<: *defaultCONF
-    env_file: [./env/forge.env]
-    ports:
-      - "28016:28016"
-      - "25565:25565"
-    networks: [forge-net]
-    volumes: [forgeMC:/data]
-  rcon:
-    container_name: rcon
-    image: itzg/rcon
-    hostname: rcon
-    <<: *defaultCONF
-    labels:
-      # Web UI
-      - "traefik.enable=true"
-      - "traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)"
-      - "traefik.http.routers.rcon.entrypoints=websecure"
-      - "traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.rcon.tls.certresolver=CFWildcard"
-      - "traefik.http.services.rcon.loadbalancer.server.port=4326"
-      - "traefik.docker.network=docker_forge-net"
-    ports:
-      - "4327:4327"
-    networks: [forge-net]
-    volumes: [rcon:/opt/rcon-web-admin/db]
-
+#  minecraft:
+#    container_name: forge
+#    image: itzg/minecraft-server
+#    hostname: forge
+#    <<: *defaultCONF
+#    env_file: [./env/forge.env]
+#    ports:
+#      - "28016:28016"
+#      - "25565:25565"
+#    networks: [forge-net]
+#    volumes: [forgeMC:/data]
+#  rcon:
+#    container_name: rcon
+#    image: itzg/rcon
+#    hostname: rcon
+#    <<: *defaultCONF
+#    labels:
+#      - "com.centurylinklabs.watchtower.enable=true"
+#      # Web UI
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)"
+#      - "traefik.http.routers.rcon.entrypoints=websecure"
+#      - "traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc"
+#      - "traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc"
+#      - "traefik.http.routers.rcon.tls.certresolver=CFWildcard"
+#      - "traefik.http.services.rcon.loadbalancer.server.port=4326"
+#      - "traefik.docker.network=docker_forge-net"
+#    ports:
+#      - "4327:4327"
+#    networks: [forge-net]
+#    volumes: [rcon:/opt/rcon-web-admin/db]
+#
 ########################################################################
 ##
 ##          Media
 ##
-##    Bazarr - Subtitle downloader and management
 ##    Plex - Media/Streaming server
 ##    Radarr - Movie downloading and library bigip_management
 ##    Sonarr - Television download scheduling
@@ -189,31 +255,13 @@ services:
 ##
 ##
 ########################################################################
-  bazarr:
-    container_name: bazarr
-    image: linuxserver/bazarr
-    hostname: bazarr
-    <<: *defaultCONF
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.bazarr.rule=Host(`bazarr.beowulf.cc`)"
-      - "traefik.http.routers.bazarr.entrypoints=websecure"
-      - "traefik.http.routers.bazarr.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.bazarr.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.bazarr.tls.certresolver=CFWildcard"
-      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
-      - "traefik.docker.network=docker_bazarr-net"
-    networks: [bazarr-net]
-    volumes:
-      - bazarrCFG:/config
-      - plexMovies:/movies
-      - plexTV:/tv
   plex:
     container_name: plex
     image: linuxserver/plex
     hostname: plex
     <<: *defaultCONF
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       - "traefik.http.routers.plex.rule=Host(`plex.beowulf.cc`)"
       - "traefik.http.routers.plex.entrypoints=websecure"
@@ -241,6 +289,7 @@ services:
     hostname: radarr
     <<: *defaultCONF
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       - "traefik.http.routers.radarr.rule=Host(`radarr.beowulf.cc`)"
       - "traefik.http.routers.radarr.entrypoints=websecure"
@@ -262,6 +311,7 @@ services:
     hostname: sonarr
     <<: *defaultCONF
     labels:
+      - "com.centurylinklabs.watchtower.enable=true"
       - "traefik.enable=true"
       - "traefik.http.routers.sonarr.rule=Host(`sonarr.beowulf.cc`)"
       - "traefik.http.routers.sonarr.entrypoints=websecure"
@@ -344,19 +394,15 @@ services:
     depends_on: [vpn]
     
 networks:
-  bazarr-net:
-  forge-net:
+#  forge-net:
+  guac-net:
   piHole-net:
   port-net:
+  postgres-net:
   plex-net:
   torrent-net:
 
 volumes:
-  bazarrCFG:
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":/volume1/docker/bazarr/config"
   delugeCFG:
     <<: *nfsDriver
     driver_opts:
@@ -367,11 +413,31 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/downloads"
-  forgeMC: 
+#  forgeMC: 
+#    <<: *nfsDriver
+#    driver_opts:
+#      <<: *driverOpts
+#      device: ":/volume1/docker/forge/data"
+  guacData:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/forge/data"
+      device: ":/volume1/docker/guacamole/data"
+  guacDrive:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ":/volume1/docker/guacamole/drive"
+  guacInit:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ":/volume1/docker/guacamole/init"
+  guacRecord:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ":/volume1/docker/guacamole/record"
   jackettCFG:
     <<: *nfsDriver
     driver_opts:
@@ -417,11 +483,11 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ":/volume1/docker/radarr/config"
-  rcon: 
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ":/volume1/docker/rcon/db"
+#  rcon: 
+#    <<: *nfsDriver
+#    driver_opts:
+#      <<: *driverOpts
+#      device: ":/volume1/docker/rcon/db"
   sonarrCFG:
     <<: *nfsDriver
     driver_opts:
