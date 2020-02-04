@@ -5,6 +5,8 @@
 2. Cloudflare DNS and API token
 3. NordVPN Account
 4. Plex Account/Claim Token
+5. NAS or NFS server with volumes pre-created
+6. For guacamole, init.db must be generated and copied ot the init DIR (per instruction on their DOcker page)
 
 ## Install CoreOS to ESXi
 

@@ -1,12 +1,12 @@
 ---
-version: "3.7"
+version: '3.7'
 
 x-defaultCONF: &defaultCONF
   domainname: beowulf.cc
   environment:
-    - "TZ=America/Toronto"
-    - "PUID=1026"
-    - "PGID=101"
+    - 'TZ=America/Toronto'
+    - 'PUID=1026'
+    - 'PGID=101'
   restart: always
     
 
@@ -17,6 +17,27 @@ x-nfs-driver: &nfsDriver
   driver: local
 
 services: 
+########################################################################
+##
+##          Services
+##
+##    NTP - NTP Service Polling from time.cloudflare.com
+##    
+##
+########################################################################
+  ntp:
+    container_name: ntp
+    image: cturra/ntp:latest
+    <<: *defaultCONF
+    environment: [NTP_SERVERS=time.cloudflare.com]
+    labels: ['com.centurylinklabs.watchtower.enable=true']
+    ports: [123:123/udp]
+    networks: [ntp-net]
+    cap_add:
+      - SYS_NICE
+      - SYS_RESOURCE
+      - SYS_TIME
+
 ########################################################################
 ##
 ##          Management
@@ -35,36 +56,37 @@ services:
     <<: *defaultCONF
     env_file: [./env/traefik.env]
     command: 
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
+      - '--api.insecure=true'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--entrypoints.web.address=:80'
+      - '--entrypoints.websecure.address=:443'
       # LetsEncrypt
-      - "--certificatesresolvers.CFWildcard.acme.email=stubbe@live.ca"
-      - "--certificatesresolvers.CFWildcard.acme.dnschallenge.provider=cloudflare"
-      - "--certificatesresolvers.CFWildcard.acme.storage=/etc/traefik/acme.json"
+      - '--certificatesresolvers.CFWildcard.acme.email=stubbe@live.ca'
+      - '--certificatesresolvers.CFWildcard.acme.dnschallenge.provider=cloudflare'
+      - '--certificatesresolvers.CFWildcard.acme.storage=/etc/traefik/acme.json'
     labels: 
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.beowulf.cc`)"
-      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
-      - "traefik.http.services.traefik.loadbalancer.server.scheme=http"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.traefik.rule=Host(`traefik.beowulf.cc`)'
+      - 'traefik.http.services.traefik.loadbalancer.server.port=8080'
+      - 'traefik.http.services.traefik.loadbalancer.server.scheme=http'
       # HTTP ==> HTTPS
-      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:[a-z-.]+}`)"
-      - "traefik.http.routers.http-catchall.entrypoints=web"
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-      - "traefik.http.routers.http-catchall.priority=1"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - 'traefik.http.routers.http-catchall.rule=hostregexp(`{host:[a-z-.]+}`)'
+      - 'traefik.http.routers.http-catchall.entrypoints=web'
+      - 'traefik.http.routers.http-catchall.middlewares=redirect-to-https'
+      - 'traefik.http.routers.http-catchall.priority=1'
+      - 'traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https'
       # CF Wildcard
-      - "traefik.http.routers.traefik.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.traefik.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.traefik.tls.certresolver=CFWildcard"
+      - 'traefik.http.routers.traefik.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.traefik.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.traefik.tls.certresolver=CFWildcard'
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     networks:
       - guac-net
+      - openvpn-net
       - piHole-net
       - port-net
       - postgres-net
@@ -77,28 +99,28 @@ services:
   pihole:
     container_name: pihole
     image: pihole/pihole
-    hostname: pi.hole #ensure this differs from traefik host
+    hostname: tartarus #ensure this differs from traefik host
     <<: *defaultCONF
     env_file:
       - ./env/pihole.env
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - 'com.centurylinklabs.watchtower.enable=true'
       # domain mapping
-      - "traefik.enable=true"
-      - "traefik.http.routers.pihole.rule=Host(`pihole.beowulf.cc`) || Host(`tartarus.beowulf.cc`)"
-      - "traefik.http.routers.pihole.entrypoints=websecure"
-      - "traefik.http.routers.pihole.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.pihole.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.pihole.tls.certresolver=CFWildcard"
-      - "traefik.http.routers.pihole.service=pihole"
-      - "traefik.http.routers.pihole.middlewares=piholeadmin"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.pihole.rule=Host(`pihole.beowulf.cc`) || Host(`tartarus.beowulf.cc`)'
+      - 'traefik.http.routers.pihole.entrypoints=websecure'
+      - 'traefik.http.routers.pihole.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.pihole.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.pihole.tls.certresolver=CFWildcard'
+      - 'traefik.http.routers.pihole.service=pihole'
+      - 'traefik.http.routers.pihole.middlewares=piholeadmin'
       # pi.hole mapping (no ssl)
-      - "traefik.http.routers.pidothole.rule=Host(`pi.hole`)"
-      - "traefik.http.routers.pidothole.entrypoints=web"
-      - "traefik.http.routers.pidothole.service=pihole"
-      - "traefik.http.routers.pidothole.priority=2"
-      - "traefik.http.services.pihole.loadbalancer.server.port=80"
-      - "traefik.docker.network=docker_piHole-net"
+      - 'traefik.http.routers.pidothole.rule=Host(`pi.hole`)'
+      - 'traefik.http.routers.pidothole.entrypoints=web'
+      - 'traefik.http.routers.pidothole.service=pihole'
+      - 'traefik.http.routers.pidothole.priority=2'
+      - 'traefik.http.services.pihole.loadbalancer.server.port=80'
+      - 'traefik.docker.network=docker_piHole-net'
       # add admin to path
       - traefik.http.middlewares.piholeadmin.replacepathregex.regex=^/((?i:(admin)/{0,1}|.{0})(.*))
       - traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3
@@ -107,7 +129,6 @@ services:
     ports:
       - 53:53/tcp
       - 53:53/udp
-      - 67:67/udp
     networks:
       - piHole-net
     volumes:
@@ -120,15 +141,15 @@ services:
     command: -H unix:///var/run/docker.sock
     <<: *defaultCONF
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`portainer.beowulf.cc`)"
-      - "traefik.http.routers.portainer.entrypoints=websecure"
-      - "traefik.http.routers.portainer.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.portainer.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.portainer.tls.certresolver=CFWildcard"
-      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-      - "traefik.docker.network=docker_port-net"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.portainer.rule=Host(`portainer.beowulf.cc`)'
+      - 'traefik.http.routers.portainer.entrypoints=websecure'
+      - 'traefik.http.routers.portainer.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.portainer.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.portainer.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.portainer.loadbalancer.server.port=9000'
+      - 'traefik.docker.network=docker_port-net'
     networks: [port-net]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -136,10 +157,10 @@ services:
   watchtower:
     container_name: watchtower
     image: v2tec/watchtower
-    command: --cleanup --schedule "0 0 3 * * *" --label-enable
+    command: --cleanup --schedule '0 0 3 * * *' --label-enable
     <<: *defaultCONF
     labels:
-    - "com.centurylinklabs.watchtower.enable=true"
+    - 'com.centurylinklabs.watchtower.enable=true'
     volumes: [/var/run/docker.sock:/var/run/docker.sock]
     
 ########################################################################
@@ -149,6 +170,7 @@ services:
 ##    Guacamole
 ##    Guacd
 ##    Postgresql
+##    OpenVPN-AS
 ##    
 ##
 ########################################################################
@@ -159,16 +181,16 @@ services:
     <<: *defaultCONF
     env_file: [./env/guacamole.env]
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.guacamole.rule=Host(`guacamole.beowulf.cc`)"
-      - "traefik.http.routers.guacamole.entrypoints=websecure"
-      - "traefik.http.routers.guacamole.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.guacamole.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.guacamole.tls.certresolver=CFWildcard"
-      - "traefik.http.services.guacamole.loadbalancer.server.port=8080"
-      - "traefik.http.routers.guacamole.middlewares=guacamole"
-      - "traefik.docker.network=docker_guac-net"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.guacamole.rule=Host(`guacamole.beowulf.cc`)'
+      - 'traefik.http.routers.guacamole.entrypoints=websecure'
+      - 'traefik.http.routers.guacamole.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.guacamole.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.guacamole.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.guacamole.loadbalancer.server.port=8080'
+      - 'traefik.http.routers.guacamole.middlewares=guacamole'
+      - 'traefik.docker.network=docker_guac-net'
       # add guacamole to path
       - traefik.http.middlewares.guacamole.replacepathregex.regex=^/((?i:(guacamole)/{0,1}|.{0})(.*))
       - traefik.http.middlewares.guacamole.replacepathregex.replacement=/guacamole/$$3
@@ -182,6 +204,7 @@ services:
     container_name: guacd
     image: guacamole/guacd
     <<: *defaultCONF
+    labels: ['com.centurylinklabs.watchtower.enable=true']
     hostname: guacd
     networks: [guac-net]
     volumes: 
@@ -191,11 +214,35 @@ services:
     container_name: postgres
     image: postgres
     <<: *defaultCONF
+    labels: ['com.centurylinklabs.watchtower.enable=true']
     env_file: [./env/guacamole.env]
     networks: [postgres-net]
     volumes:
       - guacData:/var/lib/postgresql/data:rw
       - guacInit:/docker-entrypoint-initdb.d:ro
+  openvpn-as:
+    container_name: openvpn-as
+    image: linuxserver/openvpn-as
+    <<: *defaultCONF
+    labels:
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.styx.rule=Host(`styx.beowulf.cc`)'
+      - 'traefik.http.routers.styx.entrypoints=websecure'
+      - 'traefik.http.routers.styx.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.styx.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.styx.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.styx.loadbalancer.server.port=943'
+      - 'traefik.http.routers.styx.middlewares=styx'
+      - 'traefik.docker.network=docker_styx-net'
+    networks: [openvpn-net]
+    volumes:
+      - openvepnConfig:/config
+    ports:
+      - 9443:9443
+      - 1194:1194/udp
+    cap_add:
+      - NET_ADMIN
 
 ########################################################################
 ##
@@ -213,8 +260,8 @@ services:
 #    <<: *defaultCONF
 #    env_file: [./env/forge.env]
 #    ports:
-#      - "28016:28016"
-#      - "25565:25565"
+#      - '28016:28016'
+#      - '25565:25565'
 #    networks: [forge-net]
 #    volumes: [forgeMC:/data]
 #  rcon:
@@ -223,18 +270,18 @@ services:
 #    hostname: rcon
 #    <<: *defaultCONF
 #    labels:
-#      - "com.centurylinklabs.watchtower.enable=true"
+#      - 'com.centurylinklabs.watchtower.enable=true'
 #      # Web UI
-#      - "traefik.enable=true"
-#      - "traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)"
-#      - "traefik.http.routers.rcon.entrypoints=websecure"
-#      - "traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc"
-#      - "traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc"
-#      - "traefik.http.routers.rcon.tls.certresolver=CFWildcard"
-#      - "traefik.http.services.rcon.loadbalancer.server.port=4326"
-#      - "traefik.docker.network=docker_forge-net"
+#      - 'traefik.enable=true'
+#      - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+#      - 'traefik.http.routers.rcon.entrypoints=websecure'
+#      - 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
+#      - 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
+#      - 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
+#      - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
+#      - 'traefik.docker.network=docker_forge-net'
 #    ports:
-#      - "4327:4327"
+#      - '4327:4327'
 #    networks: [forge-net]
 #    volumes: [rcon:/opt/rcon-web-admin/db]
 #
@@ -261,24 +308,24 @@ services:
     hostname: plex
     <<: *defaultCONF
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.plex.rule=Host(`plex.beowulf.cc`)"
-      - "traefik.http.routers.plex.entrypoints=websecure"
-      - "traefik.http.routers.plex.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.plex.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.plex.tls.certresolver=CFWildcard"
-      - "traefik.http.services.plex.loadbalancer.server.port=32400"
-      - "traefik.docker.network=docker_plex-net"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.plex.rule=Host(`plex.beowulf.cc`)'
+      - 'traefik.http.routers.plex.entrypoints=websecure'
+      - 'traefik.http.routers.plex.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.plex.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.plex.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.plex.loadbalancer.server.port=32400'
+      - 'traefik.docker.network=docker_plex-net'
     ports:
-      - "1900:1900/udp"
-      - "3005:3005/tcp"
-      - "5353:5353/udp"
-      - "8324:8324/tcp"
-      - "32410:32410/udp"
-      - "32412-32414:32412-32414/udp"
-      - "32469:32469"
-      - "32469:32469/udp"
+      - '1900:1900/udp'
+      - '3005:3005/tcp'
+      - '5353:5353/udp'
+      - '8324:8324/tcp'
+      - '32410:32410/udp'
+      - '32412-32414:32412-32414/udp'
+      - '32469:32469/tcp'
+      - '32469:32469/udp'
     networks: [plex-net]
     volumes:
       - plexCFG:/config
@@ -289,15 +336,15 @@ services:
     hostname: radarr
     <<: *defaultCONF
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.radarr.rule=Host(`radarr.beowulf.cc`)"
-      - "traefik.http.routers.radarr.entrypoints=websecure"
-      - "traefik.http.routers.radarr.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.radarr.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.radarr.tls.certresolver=CFWildcard"
-      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
-      - "traefik.docker.network=docker_torrent-net"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.radarr.rule=Host(`radarr.beowulf.cc`)'
+      - 'traefik.http.routers.radarr.entrypoints=websecure'
+      - 'traefik.http.routers.radarr.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.radarr.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.radarr.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.radarr.loadbalancer.server.port=7878'
+      - 'traefik.docker.network=docker_torrent-net'
     networks:
       - torrent-net
       - plex-net
@@ -311,15 +358,15 @@ services:
     hostname: sonarr
     <<: *defaultCONF
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.sonarr.rule=Host(`sonarr.beowulf.cc`)"
-      - "traefik.http.routers.sonarr.entrypoints=websecure"
-      - "traefik.http.routers.sonarr.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.sonarr.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.sonarr.tls.certresolver=CFWildcard"
-      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
-      - "traefik.docker.network=docker_torrent-net"
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.sonarr.rule=Host(`sonarr.beowulf.cc`)'
+      - 'traefik.http.routers.sonarr.entrypoints=websecure'
+      - 'traefik.http.routers.sonarr.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.sonarr.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.sonarr.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.sonarr.loadbalancer.server.port=8989'
+      - 'traefik.docker.network=docker_torrent-net'
     networks:
       - torrent-net
       - plex-net
@@ -340,35 +387,35 @@ services:
     <<: *defaultCONF
     env_file: [./env/nordvpn.env]
     labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=docker_torrent-net"
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=docker_torrent-net'
       # deluge
-      - "traefik.http.routers.deluge.rule=Host(`deluge.beowulf.cc`)"
-      - "traefik.http.routers.deluge.entrypoints=websecure"
-      - "traefik.http.routers.deluge.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.deluge.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.deluge.tls.certresolver=CFWildcard"
-      - "traefik.http.routers.deluge.service=deluge"
-      - "traefik.http.services.deluge.loadbalancer.server.port=8112"
+      - 'traefik.http.routers.deluge.rule=Host(`deluge.beowulf.cc`)'
+      - 'traefik.http.routers.deluge.entrypoints=websecure'
+      - 'traefik.http.routers.deluge.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.deluge.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.deluge.tls.certresolver=CFWildcard'
+      - 'traefik.http.routers.deluge.service=deluge'
+      - 'traefik.http.services.deluge.loadbalancer.server.port=8112'
       # jackett
-      - "traefik.http.routers.jackett.rule=Host(`jackett.beowulf.cc`)"
-      - "traefik.http.routers.jackett.entrypoints=websecure"
-      - "traefik.http.routers.jackett.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.jackett.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.jackett.tls.certresolver=CFWildcard"
-      - "traefik.http.routers.jackett.service=jackett"
-      - "traefik.http.services.jackett.loadbalancer.server.port=9117"
+      - 'traefik.http.routers.jackett.rule=Host(`jackett.beowulf.cc`)'
+      - 'traefik.http.routers.jackett.entrypoints=websecure'
+      - 'traefik.http.routers.jackett.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.jackett.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.jackett.tls.certresolver=CFWildcard'
+      - 'traefik.http.routers.jackett.service=jackett'
+      - 'traefik.http.services.jackett.loadbalancer.server.port=9117'
       # vpn
-      - "traefik.http.routers.vpn.rule=Host(`vpn.beowulf.cc`)"
-      - "traefik.http.routers.vpn.entrypoints=websecure"
-      - "traefik.http.routers.vpn.tls.domains[0].main=beowulf.cc"
-      - "traefik.http.routers.vpn.tls.domains[0].sans=*.beowulf.cc"
-      - "traefik.http.routers.vpn.tls.certresolver=CFWildcard"
-      - "traefik.http.routers.vpn.service=vpn"
-      - "traefik.http.services.vpn.loadbalancer.server.port=8118"
+      - 'traefik.http.routers.vpn.rule=Host(`vpn.beowulf.cc`)'
+      - 'traefik.http.routers.vpn.entrypoints=websecure'
+      - 'traefik.http.routers.vpn.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.vpn.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.vpn.tls.certresolver=CFWildcard'
+      - 'traefik.http.routers.vpn.service=vpn'
+      - 'traefik.http.services.vpn.loadbalancer.server.port=8118'
     ports:
-      - "58846:58846"
-      - "58946:58946"
+      - '58846:58846'
+      - '58946:58946'
     networks: [torrent-net]
     devices: [/dev/net/tun]
     cap_add: [NET_ADMIN]
@@ -376,7 +423,7 @@ services:
     container_name: deluge
     image: linuxserver/deluge
     <<: *defaultCONF
-    labels: [com.centurylinklabs.watchtower.enable="false"]
+    labels: [com.centurylinklabs.watchtower.enable='false']
     volumes:
       - delugeCFG:/config
       - downloads:/downloads
@@ -386,7 +433,7 @@ services:
     container_name: jackett
     image: linuxserver/jackett
     <<: *defaultCONF
-    labels: [com.centurylinklabs.watchtower.enable="false"]
+    labels: [com.centurylinklabs.watchtower.enable='false']
     volumes:
       - jackettCFG:/config
       - TMP:/downloads
@@ -396,6 +443,8 @@ services:
 networks:
 #  forge-net:
   guac-net:
+  ntp-net:
+  openvpn-net:
   piHole-net:
   port-net:
   postgres-net:
@@ -407,99 +456,104 @@ volumes:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/deluge/config"
+      device: ':/volume1/docker/deluge/config'
   downloads:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/downloads"
+      device: ':/volume1/docker/downloads'
 #  forgeMC: 
 #    <<: *nfsDriver
 #    driver_opts:
 #      <<: *driverOpts
-#      device: ":/volume1/docker/forge/data"
+#      device: ':/volume1/docker/forge/data'
   guacData:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/guacamole/data"
+      device: ':/volume1/docker/guacamole/data'
   guacDrive:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/guacamole/drive"
+      device: ':/volume1/docker/guacamole/drive'
   guacInit:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/guacamole/init"
+      device: ':/volume1/docker/guacamole/init'
   guacRecord:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/guacamole/record"
+      device: ':/volume1/docker/guacamole/record'
   jackettCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/jackett/config"
+      device: ':/volume1/docker/jackett/config'
+  openvpnCFG:
+    <<: *nfsDriver
+    driver_opts: 
+      <<: *driverOpts
+      device: '/volume1/docker/openvpn/config'
   piETC:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/pihole/etc-pihole"
+      device: ':/volume1/docker/pihole/etc-pihole'
   piMasq:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/pihole/etc-dnsmasq.d"
+      device: ':/volume1/docker/pihole/etc-dnsmasq.d'
   plexCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/plex/config"
+      device: ':/volume1/docker/plex/config'
   plexLib:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/plex/library"
+      device: ':/volume1/docker/plex/library'
   plexMovies:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/plex/library/movies"
+      device: ':/volume1/docker/plex/library/movies'
   plexTV:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/plex/library/television"
+      device: ':/volume1/docker/plex/library/television'
   portainerDAT:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/portainer/data"
+      device: ':/volume1/docker/portainer/data'
   radarrCFG: 
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/radarr/config"
+      device: ':/volume1/docker/radarr/config'
 #  rcon: 
 #    <<: *nfsDriver
 #    driver_opts:
 #      <<: *driverOpts
-#      device: ":/volume1/docker/rcon/db"
+#      device: ':/volume1/docker/rcon/db'
   sonarrCFG:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/sonarr/config"
+      device: ':/volume1/docker/sonarr/config'
   TMP:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/tmp"
+      device: ':/volume1/docker/tmp'
   traefikETC:
     <<: *nfsDriver
     driver_opts:
       <<: *driverOpts
-      device: ":/volume1/docker/traefik/etc"
+      device: ':/volume1/docker/traefik/etc'
