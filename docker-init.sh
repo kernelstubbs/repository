@@ -12,7 +12,7 @@ if ["$(command -v yum)"]; then
     echo "yum detected..."
     [ -x "$(command -v git)" ] || yum install git
     [ -x "$(command -v curl)" ] || yum install curl   
-elif ["$(command -v rpm-ostree)"]; then
+elif rpm-ostree --version | grep -q rpm-ostree; then
     echo "rpm detected..."
     [ -x "$(command -v git)" ] || rpm-ostree install git
     [ -x "$(command -v curl)" ] || rpm-ostree install curl
