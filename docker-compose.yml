@@ -86,7 +86,6 @@ services:
       - '443:443'
     networks:
       - guac-net
-      - openvpn-net
       - piHole-net
       - port-net
       - postgres-net
@@ -122,8 +121,8 @@ services:
       - 'traefik.http.services.pihole.loadbalancer.server.port=80'
       - 'traefik.docker.network=docker_piHole-net'
       # add admin to path
-      - traefik.http.middlewares.piholeadmin.replacepathregex.regex=^/((?i:(admin)/{0,1}|.{0})(.*))
-      - traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3
+      - 'traefik.http.middlewares.piholeadmin.replacepathregex.regex=^/((?i:(admin)/{0,1}|.{0})(.*))'
+      - 'traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3'
     dns:
       - 127.0.0.1
     ports:
@@ -170,7 +169,6 @@ services:
 ##    Guacamole
 ##    Guacd
 ##    Postgresql
-##    OpenVPN-AS
 ##    
 ##
 ########################################################################
@@ -192,8 +190,8 @@ services:
       - 'traefik.http.routers.guacamole.middlewares=guacamole'
       - 'traefik.docker.network=docker_guac-net'
       # add guacamole to path
-      - traefik.http.middlewares.guacamole.replacepathregex.regex=^/((?i:(guacamole)/{0,1}|.{0})(.*))
-      - traefik.http.middlewares.guacamole.replacepathregex.replacement=/guacamole/$$3
+      - 'traefik.http.middlewares.guacamole.replacepathregex.regex=^/((?i:(guacamole)/{0,1}|.{0})(.*))'
+      - 'traefik.http.middlewares.guacamole.replacepathregex.replacement=/guacamole/$$3'
     networks:
       - guac-net
       - postgres-net
@@ -220,29 +218,6 @@ services:
     volumes:
       - guacData:/var/lib/postgresql/data:rw
       - guacInit:/docker-entrypoint-initdb.d:ro
-  openvpn-as:
-    container_name: openvpn-as
-    image: linuxserver/openvpn-as
-    <<: *defaultCONF
-    labels:
-      - 'com.centurylinklabs.watchtower.enable=true'
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.styx.rule=Host(`styx.beowulf.cc`)'
-      - 'traefik.http.routers.styx.entrypoints=websecure'
-      - 'traefik.http.routers.styx.tls.domains[0].main=beowulf.cc'
-      - 'traefik.http.routers.styx.tls.domains[0].sans=*.beowulf.cc'
-      - 'traefik.http.routers.styx.tls.certresolver=CFWildcard'
-      - 'traefik.http.services.styx.loadbalancer.server.port=943'
-      - 'traefik.http.routers.styx.middlewares=styx'
-      - 'traefik.docker.network=docker_styx-net'
-    networks: [openvpn-net]
-    volumes:
-      - openvepnConfig:/config
-    ports:
-      - 9443:9443
-      - 1194:1194/udp
-    cap_add:
-      - NET_ADMIN
 
 ########################################################################
 ##
@@ -253,38 +228,39 @@ services:
 ##    
 ##
 ########################################################################
-#  minecraft:
-#    container_name: forge
-#    image: itzg/minecraft-server
-#    hostname: forge
-#    <<: *defaultCONF
-#    env_file: [./env/forge.env]
-#    ports:
-#      - '28016:28016'
-#      - '25565:25565'
-#    networks: [forge-net]
-#    volumes: [forgeMC:/data]
-#  rcon:
-#    container_name: rcon
-#    image: itzg/rcon
-#    hostname: rcon
-#    <<: *defaultCONF
-#    labels:
-#      - 'com.centurylinklabs.watchtower.enable=true'
-#      # Web UI
-#      - 'traefik.enable=true'
-#      - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
-#      - 'traefik.http.routers.rcon.entrypoints=websecure'
-#      - 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
-#      - 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
-#      - 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
-#      - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
-#      - 'traefik.docker.network=docker_forge-net'
+  minecraft:
+    container_name: forge
+    image: itzg/minecraft-server
+    hostname: forge
+    <<: *defaultCONF
+    env_file: [./env/forge.env]
+    ports:
+      - '28016:28016'
+      - '25565:25565'
+    networks: [forge-net]
+    volumes: [forgeMC:/data]
+  rcon:
+    container_name: rcon
+    image: itzg/rcon
+    hostname: rcon
+    <<: *defaultCONF
+    labels:
+      - 'com.centurylinklabs.watchtower.enable=true'
+      # Web UI
+      - 'traefik.enable=true'
+      - 'traefik.tcp.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+      - 'traefik.tcp.routers.rcon.entrypoints=websecure'
+      - 'traefik.tcp.routers.rcon.tls.domains[0].main=beowulf.cc'
+      - 'traefik.tcp.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.tcp.routers.rcon.tls.certresolver=CFWildcard'
+      - 'traefik.tcp.routers.styx.tls.passthrough=true'
+#      - 'traefik.tcp.services.rcon.loadbalancer.server.port=4326'
+      - 'traefik.docker.network=docker_forge-net'
 #    ports:
 #      - '4327:4327'
-#    networks: [forge-net]
-#    volumes: [rcon:/opt/rcon-web-admin/db]
-#
+    networks: [forge-net]
+    volumes: [rcon:/opt/rcon-web-admin/db]
+
 ########################################################################
 ##
 ##          Media
@@ -441,10 +417,9 @@ services:
     depends_on: [vpn]
     
 networks:
-#  forge-net:
+  forge-net:
   guac-net:
   ntp-net:
-  openvpn-net:
   piHole-net:
   port-net:
   postgres-net:
@@ -462,11 +437,11 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/downloads'
-#  forgeMC: 
-#    <<: *nfsDriver
-#    driver_opts:
-#      <<: *driverOpts
-#      device: ':/volume1/docker/forge/data'
+  forgeMC: 
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ':/volume1/docker/forge/data'
   guacData:
     <<: *nfsDriver
     driver_opts:
@@ -492,11 +467,6 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/jackett/config'
-  openvpnCFG:
-    <<: *nfsDriver
-    driver_opts: 
-      <<: *driverOpts
-      device: '/volume1/docker/openvpn/config'
   piETC:
     <<: *nfsDriver
     driver_opts:
@@ -537,11 +507,11 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/radarr/config'
-#  rcon: 
-#    <<: *nfsDriver
-#    driver_opts:
-#      <<: *driverOpts
-#      device: ':/volume1/docker/rcon/db'
+  rcon: 
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ':/volume1/docker/rcon/db'
   sonarrCFG:
     <<: *nfsDriver
     driver_opts:

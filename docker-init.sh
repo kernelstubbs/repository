@@ -5,15 +5,29 @@ workingDIR="/opt/docker/homelab"
 
 # test for root and exit
 [ "$EUID" -ne 0 ] && echo "Please run as root" && exit
-# Assuming GIT is installed and repo is pulled already...but if the code is copypasted here it be
-[ -x "$(command -v git)" ] || yum install git -y
+# Testing for GIT and CURL
+# TODO - improve package detection to work with apt, yum and others
+echo "Testing for GIT and CURL..."
+if ["$(command -v yum)"]; then
+    echo "yum detected..."
+    [ -x "$(command -v git)" ] || yum install git
+    [ -x "$(command -v curl)" ] || yum install curl   
+elif ["$(command -v rpm-ostree)"]; then
+    echo "rpm detected..."
+    [ -x "$(command -v git)" ] || rpm-ostree install git
+    [ -x "$(command -v curl)" ] || rpm-ostree install curl
+else
+    echo "No package manager detected" && exit
+fi
+
 # Clone the repo if the working directory is empty, rest if it's not
 if [ "$(ls -A $workingDIR)" ]; then
+    # A hard reset will wipe all the files but keep the answerfile.csv with env variables in it to repopulate
     read -r -p "Reset repo to default? [y/N] " response
     case "$response" in
         [yY][eE][sS]|[yY]) 
-            git -C $workingDIR fetch --all
-            git -C $workingDIR reset --hard origin/master
+            git --git-dir=$workingDIR/.git fetch --all
+            git --git-dir=$workingDIR/.git reset --hard origin/master
             ;;
         *)
             ;;
@@ -87,7 +101,7 @@ do
                 read -p "Enter value for $varTarget - $varName: " varVal </dev/tty
                 # replace the line with user input
             fi
-            sed -i '' "s/$line/$varName=$varVal/g" $file
+            sed -i "s/$line/$varName=$varVal/g" $file
             [ -z "$ansVal" ] && echo "$varTarget,$varName,$varVal" >> $answerFile # Add to answer file if it's not already there
         fi
     done <$file
