@@ -60,6 +60,7 @@ services:
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
       - '--entrypoints.web.address=:80'
+      - '--entrypoints.rconapi.address=:4327'
       - '--entrypoints.websecure.address=:443'
       # LetsEncrypt
       - '--certificatesresolvers.CFWildcard.acme.email=stubbe@live.ca'
@@ -84,6 +85,7 @@ services:
     ports:
       - '80:80'
       - '443:443'
+      - '4327:4327'
     networks:
       - guac-net
       - piHole-net
@@ -91,7 +93,7 @@ services:
       - postgres-net
       - plex-net
       - torrent-net
-#      - forge-net
+      - forge-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - traefikETC:/etc/traefik
@@ -228,17 +230,10 @@ services:
 ##    
 ##
 ########################################################################
-  minecraft:
-    container_name: forge
-    image: itzg/minecraft-server
-    hostname: forge
-    <<: *defaultCONF
-    env_file: [./env/forge.env]
-    ports:
-      - '28016:28016'
-      - '25565:25565'
-    networks: [forge-net]
-    volumes: [forgeMC:/data]
+##
+##    Minecraft Servers are all in override file
+##
+########################################################################
   rcon:
     container_name: rcon
     image: itzg/rcon
@@ -246,18 +241,26 @@ services:
     <<: *defaultCONF
     labels:
       - 'com.centurylinklabs.watchtower.enable=true'
+
+      # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
+      # but unless I use a non ssl connection, the websocket doens't work
+
       # Web UI
       - 'traefik.enable=true'
-      - 'traefik.tcp.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
-      - 'traefik.tcp.routers.rcon.entrypoints=websecure'
-      - 'traefik.tcp.routers.rcon.tls.domains[0].main=beowulf.cc'
-      - 'traefik.tcp.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
-      - 'traefik.tcp.routers.rcon.tls.certresolver=CFWildcard'
-      - 'traefik.tcp.routers.styx.tls.passthrough=true'
-#      - 'traefik.tcp.services.rcon.loadbalancer.server.port=4326'
+      - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+      - 'traefik.http.routers.rcon.entrypoints=web'
+      - 'traefik.http.routers.rcon.priority=2'
+      #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
+      #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
+      #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
+      - 'traefik.http.routers.rcon.service=rcon'
+      - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
+      # API
+      - 'traefik.http.routers.rconapi.rule=Host(`rcon.beowulf.cc`)'
+      - 'traefik.http.routers.rconapi.entrypoints=rconapi'
+      - 'traefik.http.routers.rconapi.service=rconapi'
+      - 'traefik.http.services.rconapi.loadbalancer.server.port=4327'
       - 'traefik.docker.network=docker_forge-net'
-#    ports:
-#      - '4327:4327'
     networks: [forge-net]
     volumes: [rcon:/opt/rcon-web-admin/db]
 
@@ -437,11 +440,6 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/downloads'
-  forgeMC: 
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ':/volume1/docker/forge/data'
   guacData:
     <<: *nfsDriver
     driver_opts:

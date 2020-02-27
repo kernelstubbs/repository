@@ -1,24 +1,17 @@
 #!/bin/bash
-set -Euo pipefail
+# set -Eeu -o pipefail
 
 workingDIR="/opt/docker/homelab"
 
 # test for root and exit
 [ "$EUID" -ne 0 ] && echo "Please run as root" && exit
+
 # Testing for GIT and CURL
 # TODO - improve package detection to work with apt, yum and others
-echo "Testing for GIT and CURL..."
-if ["$(command -v yum)"]; then
-    echo "yum detected..."
-    [ -x "$(command -v git)" ] || yum install git
-    [ -x "$(command -v curl)" ] || yum install curl   
-elif rpm-ostree --version | grep -q rpm-ostree; then
-    echo "rpm detected..."
-    [ -x "$(command -v git)" ] || rpm-ostree install git
-    [ -x "$(command -v curl)" ] || rpm-ostree install curl
-else
-    echo "No package manager detected" && exit
-fi
+# echo "Testing for GIT and CURL..."
+# [ -x "$(command -v git)" ] || apt-get install git
+# [ -x "$(command -v curl)" ] || apt-get install curl
+# [ -x "$(command -v docker)"] || snap install docker
 
 # Clone the repo if the working directory is empty, rest if it's not
 if [ "$(ls -A $workingDIR)" ]; then
@@ -38,7 +31,7 @@ fi
 
 # Test for and install docker-compose in /opt/bin and add it to the path (since running in su, path may need to be modified per-user)
 composeVer=$(curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/docker/compose/releases/latest | sed 's#.*tag/##g')
-if [ -x "$(command -v docker-compose)" ] | [ $(docker-compose version --short) -eq $composeVer ]; then
+if [ ! -x "$(command -v docker-compose)" ] || [ $(docker-compose version --short) != $composeVer ]; then
     # See if /opt/bin exists and if it doesn't, create and add to path
     test -f "/opt/bin" || mkdir -p /opt/bin
     echo "$PATH"|grep -q "/opt/bin" || PATH=$PATH:/opt/bin
