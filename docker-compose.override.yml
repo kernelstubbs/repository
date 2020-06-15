@@ -26,6 +26,25 @@ services:
 #        networks: [forge-net]
 #        volumes: ['forgeMC:/data']
 #        restart: unless-stopped
+    bedrockCreative:
+        container_name: bedrockCreative
+        image: itzg/minecraft-bedrock-server
+        hostname: bedrockCreative
+        environment:
+            EULA: 'TRUE'
+            DIFFICULTY: normal
+            GAMEMODE: creative
+            SERVER_NAME: 'Creativo'
+            SERVER_PORT: '19134'
+            ALLOW_CHEATS: 'true'
+            MAX_PLAYERS: '7'
+            LEVEL_NAME: 'Creativo'
+        ports:
+            - 19134:19134/udp
+            - 19134:19134/tcp
+        networks: [forge-net]
+        volumes: ['bedrockCreativeMC:/data']
+        restart: unless-stopped
     bedrock:
         container_name: bedrock
         image: itzg/minecraft-bedrock-server
@@ -37,6 +56,7 @@ services:
             SERVER_NAME: 
         ports:
             - 19132:19132/udp
+            - 19132:19132/tcp
         networks: [forge-net]
         volumes: ['bedrockMC:/data']
         restart: unless-stopped
@@ -53,7 +73,34 @@ services:
         networks: [forge-net]
         volumes: ['./minecraft:/data']
         restart: unless-stopped
+    vanillaBAK:
+        container_name: vanillaBAK
+        image: itzg/mc-backup
+        environment:
+            BACKUP_NAME: 'vanilla'
+            BACKUP_INTERVAL: '24h'
+            PRUNE_BACKUPS_DAYS: 7
+            BACKUP_METHOD: 'tar'
+            DEST_DIR: '/backups'
+            LINK_LATEST: 'false'
+            INITIAL_DELAY: 0
+            RCON_HOST: vanilla
+            RCON_PORT: 28016
+            RCON_PASSWORD: m1n3craft
+        networks: [forge-net]
+        volumes:
+            - 'backupMC:/backups'
+            - './minecraft:/data'
+    terraria:
+        container_name: 'terraria'
+        image: ryshe/terraria
+        command: '-world /world/The_Unlawful_Crown_of_Teeth.wld'
+        ports: ['7777:7777']
+        networks: [terraria-net]
+        volumes: [terraria:/world]
 
+networks:
+    terraria-net:
 
 volumes:
     backupMC: 
@@ -66,8 +113,18 @@ volumes:
         driver_opts:
             <<: *driverOpts
             device: ':/volume1/docker/bedrock-server'
+    bedrockCreativeMC:
+        <<: *nfsDriver
+        driver_opts:
+            <<: *driverOpts
+            device: ':/volume1/docker/bedrockCreative'
     forgeMC:
         <<: *nfsDriver
         driver_opts:
             <<: *driverOpts
             device: ':/volume1/docker/forge/data'
+    terraria:
+        <<: *nfsDriver
+        driver_opts: 
+            <<: *driverOpts
+            device: ':/volume1/docker/terraria'

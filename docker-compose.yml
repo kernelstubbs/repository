@@ -21,10 +21,30 @@ services:
 ##
 ##          Services
 ##
+##    Kerberos(dot)io - IP Camera Capture
 ##    NTP - NTP Service Polling from time.cloudflare.com
 ##    
 ##
-########################################################################
+########################################################################  
+  kerberos:
+    container_name: kerberos
+    image: kerberos/kerberos
+    hostname: kerberos
+    <<: *defaultCONF
+    labels:
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.tcp.routers.kerberos.rule=HostSNI(`kerberos.beowulf.cc`)'
+      - 'traefik.tcp.routers.kerberos.entrypoints=websecure'
+      - 'traefik.tcp.routers.kerberos.tls.domains[0].main=beowulf.cc'
+      - 'traefik.tcp.routers.kerberos.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.tcp.routers.kerberos.tls.certresolver=CFWildcard'
+      - 'traefik.tcp.services.kerberos.loadbalancer.server.port=80'
+      - 'traefik.docker.network=docker_kerberos-net'
+    ports: 
+      - '8889:8889'
+      - '81:80'
+    networks: [kerberos-net]
   ntp:
     container_name: ntp
     image: cturra/ntp:latest
@@ -422,6 +442,7 @@ services:
 networks:
   forge-net:
   guac-net:
+  kerberos-net:
   ntp-net:
   piHole-net:
   port-net:
