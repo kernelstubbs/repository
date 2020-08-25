@@ -14,7 +14,7 @@ echo $workingDIR
 echo "Checking for community repo..."
 # See if the $(ver)/community repo is commented out
 if cat /etc/apk/repositories | grep '[0-9]\/community' | grep \#; then
-    # Find the line number of the $(ver)/community string in repositories and append 'p'
+    # Find the line number of the $(ver)/community string in repositories
     line=$(cat /etc/apk/repositories | grep -n '[0-9]\/community' | sed -r 's/(.{1}).*/\1/')
     # Replace the '#' to uncomment the repo so docker can be installed
     sed -in $line's/\#//'
