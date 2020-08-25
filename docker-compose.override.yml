@@ -8,6 +8,24 @@ x-nfs-driver: &nfsDriver
   driver: local
 
 services:
+########################################################################
+##
+##          Gaming
+##
+##    Minecraft/Forge - Modded Minecraft serverles
+##    rcon - Server CLI management interface
+##    bedrockCreative - A sandbox for the children...so many entities.....
+##    bedrock - Survival world with train hub
+##    vanilla - Survival world with train hub
+##    vanillaBak - server to backup to NAS since vanilla is run locally on SSD
+##    Terraria - terraria
+##    
+##
+########################################################################
+##
+##    
+##
+########################################################################
 #    forge:
 #        container_name: forge
 #        image: itzg/minecraft-server
@@ -26,6 +44,32 @@ services:
 #        networks: [forge-net]
 #        volumes: ['forgeMC:/data']
 #        restart: unless-stopped
+    rcon:
+        container_name: rcon
+        image: itzg/rcon
+        hostname: rcon
+        labels:
+        - 'com.centurylinklabs.watchtower.enable=true'
+
+        # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
+        # but unless I use a non ssl connection, the websocket doens't work
+
+        # Web UI
+        - 'traefik.enable=true'
+        - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+        - 'traefik.http.routers.rcon.entrypoints=web'
+        - 'traefik.http.routers.rcon.priority=2'
+        #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
+        #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
+        #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
+        - 'traefik.http.routers.rcon.service=rcon'
+        - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
+        ports:
+            - 4326:4326
+            - 4327:4327
+        networks: [forge-net]
+        volumes: [rcon:/opt/rcon-web-admin/db]
+        restart: always
     bedrockCreative:
         container_name: bedrockCreative
         image: itzg/minecraft-bedrock-server
@@ -123,6 +167,11 @@ volumes:
         driver_opts:
             <<: *driverOpts
             device: ':/volume1/docker/forge/data'
+    rcon: 
+        <<: *nfsDriver
+        driver_opts:
+        <<: *driverOpts
+        device: ':/volume1/docker/rcon/db'
     terraria:
         <<: *nfsDriver
         driver_opts: 

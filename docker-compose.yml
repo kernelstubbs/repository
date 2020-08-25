@@ -19,47 +19,6 @@ x-nfs-driver: &nfsDriver
 services: 
 ########################################################################
 ##
-##          Services
-##
-##    Kerberos(dot)io - IP Camera Capture
-##    NTP - NTP Service Polling from time.cloudflare.com
-##    
-##
-########################################################################  
-  kerberos:
-    container_name: kerberos
-    image: kerberos/kerberos
-    hostname: kerberos
-    <<: *defaultCONF
-    labels:
-      - 'com.centurylinklabs.watchtower.enable=true'
-      - 'traefik.enable=true'
-      - 'traefik.tcp.routers.kerberos.rule=HostSNI(`kerberos.beowulf.cc`)'
-      - 'traefik.tcp.routers.kerberos.entrypoints=websecure'
-      - 'traefik.tcp.routers.kerberos.tls.domains[0].main=beowulf.cc'
-      - 'traefik.tcp.routers.kerberos.tls.domains[0].sans=*.beowulf.cc'
-      - 'traefik.tcp.routers.kerberos.tls.certresolver=CFWildcard'
-      - 'traefik.tcp.services.kerberos.loadbalancer.server.port=80'
-      - 'traefik.docker.network=docker_kerberos-net'
-    ports: 
-      - '8889:8889'
-      - '81:80'
-    networks: [kerberos-net]
-  ntp:
-    container_name: ntp
-    image: cturra/ntp:latest
-    <<: *defaultCONF
-    environment: [NTP_SERVERS=time.cloudflare.com]
-    labels: ['com.centurylinklabs.watchtower.enable=true']
-    ports: [123:123/udp]
-    networks: [ntp-net]
-    cap_add:
-      - SYS_NICE
-      - SYS_RESOURCE
-      - SYS_TIME
-
-########################################################################
-##
 ##          Management
 ##
 ##    Traefik - Reverse proxy and SSL encryption
@@ -80,7 +39,6 @@ services:
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
       - '--entrypoints.web.address=:80'
-      - '--entrypoints.rconapi.address=:4327'
       - '--entrypoints.websecure.address=:443'
       # LetsEncrypt
       - '--certificatesresolvers.CFWildcard.acme.email=stubbe@live.ca'
@@ -105,7 +63,6 @@ services:
     ports:
       - '80:80'
       - '443:443'
-      - '4327:4327'
     networks:
       - guac-net
       - piHole-net
@@ -240,49 +197,6 @@ services:
     volumes:
       - guacData:/var/lib/postgresql/data:rw
       - guacInit:/docker-entrypoint-initdb.d:ro
-
-########################################################################
-##
-##          Gaming
-##
-##    Minecraft/Forge - Modded Minecraft serverles
-##    rcon - Server CLI management interface
-##    
-##
-########################################################################
-##
-##    Minecraft Servers are all in override file
-##
-########################################################################
-  rcon:
-    container_name: rcon
-    image: itzg/rcon
-    hostname: rcon
-    <<: *defaultCONF
-    labels:
-      - 'com.centurylinklabs.watchtower.enable=true'
-
-      # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
-      # but unless I use a non ssl connection, the websocket doens't work
-
-      # Web UI
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
-      - 'traefik.http.routers.rcon.entrypoints=web'
-      - 'traefik.http.routers.rcon.priority=2'
-      #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
-      #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
-      #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
-      - 'traefik.http.routers.rcon.service=rcon'
-      - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
-      # API
-      - 'traefik.http.routers.rconapi.rule=Host(`rcon.beowulf.cc`)'
-      - 'traefik.http.routers.rconapi.entrypoints=rconapi'
-      - 'traefik.http.routers.rconapi.service=rconapi'
-      - 'traefik.http.services.rconapi.loadbalancer.server.port=4327'
-      - 'traefik.docker.network=docker_forge-net'
-    networks: [forge-net]
-    volumes: [rcon:/opt/rcon-web-admin/db]
 
 ########################################################################
 ##
@@ -526,11 +440,6 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/radarr/config'
-  rcon: 
-    <<: *nfsDriver
-    driver_opts:
-      <<: *driverOpts
-      device: ':/volume1/docker/rcon/db'
   sonarrCFG:
     <<: *nfsDriver
     driver_opts:

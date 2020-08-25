@@ -26,7 +26,7 @@ fi
 # TODO - improve package detection to work with apt, yum and others
 echo "Testing for GIT, Docker and CURL..."
 [ -x "$(command -v git)" ] || apk add git
-[ -x "$(command -v curl)" ] || apt add curl
+# -x "$(command -v curl)" ] || apk add curl
 [ -x "$(command -v docker)"] || apk add docker
 [ -x "$(command -v docker-compose)"] || apk add docker-compose
 
