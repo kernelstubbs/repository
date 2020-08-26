@@ -49,21 +49,21 @@ services:
         image: itzg/rcon
         hostname: rcon
         labels:
-        - 'com.centurylinklabs.watchtower.enable=true'
+            - 'com.centurylinklabs.watchtower.enable=true'
 
-        # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
-        # but unless I use a non ssl connection, the websocket doens't work
+            # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
+            # but unless I use a non ssl connection, the websocket doens't work
 
-        # Web UI
-        - 'traefik.enable=true'
-        - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
-        - 'traefik.http.routers.rcon.entrypoints=web'
-        - 'traefik.http.routers.rcon.priority=2'
-        #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
-        #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
-        #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
-        - 'traefik.http.routers.rcon.service=rcon'
-        - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
+            # Web UI
+            - 'traefik.enable=true'
+            - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+            - 'traefik.http.routers.rcon.entrypoints=web'
+            - 'traefik.http.routers.rcon.priority=2'
+            #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
+            #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
+            #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
+            - 'traefik.http.routers.rcon.service=rcon'
+            - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
         ports:
             - 4326:4326
             - 4327:4327
@@ -170,8 +170,8 @@ volumes:
     rcon: 
         <<: *nfsDriver
         driver_opts:
-        <<: *driverOpts
-        device: ':/volume1/docker/rcon/db'
+            <<: *driverOpts
+            device: ':/volume1/docker/rcon/db'
     terraria:
         <<: *nfsDriver
         driver_opts: 

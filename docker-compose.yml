@@ -17,6 +17,31 @@ x-nfs-driver: &nfsDriver
   driver: local
 
 services: 
+  zoneminder:
+    container_name: zoneminder
+    image: dlandon/zoneminder
+    hostname: zoneminder
+    <<: *defaultCONF
+    shm_size: "512m"
+    labels:
+      - 'com.centurylinklabs.watchtower.enable=false'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.zoneminder.rule=Host(`zoneminder.beowulf.cc`)'
+      - 'traefik.http.routers.zoneminder.entrypoints=websecure'
+      - 'traefik.http.routers.zoneminder.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.zoneminder.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.zoneminder.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.zoneminder.loadbalancer.server.port=80'
+      - 'traefik.docker.network=docker_zoneminder-net'
+      - 'traefik.http.routers.zoneminder.middlewares=zm'
+      # add 'zm' to path
+      - 'traefik.http.middlewares.zm.replacepathregex.regex=^/((?i:(zm)/{0,1}|.{0})(.*))'
+      - 'traefik.http.middlewares.zm.replacepathregex.replacement=/zm/$$3'
+    networks: [zoneminder-net]
+    volumes:
+      - zoneminderCFG:/config:rw
+      - zoneminderDAT:/var/cache/zoneminder:rw
+
 ########################################################################
 ##
 ##          Management
@@ -66,11 +91,11 @@ services:
     networks:
       - guac-net
       - piHole-net
+      - plex-net
       - port-net
       - postgres-net
-      - plex-net
       - torrent-net
-      - forge-net
+      - zoneminder-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - traefikETC:/etc/traefik
@@ -356,13 +381,13 @@ services:
 networks:
   forge-net:
   guac-net:
-  kerberos-net:
   ntp-net:
   piHole-net:
   port-net:
   postgres-net:
   plex-net:
   torrent-net:
+  zoneminder-net:
 
 volumes:
   delugeCFG:
@@ -455,3 +480,13 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/traefik/etc'
+  zoneminderCFG:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ':/volume1/docker/zoneminder'
+  zoneminderDAT:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ':/volume1/docker/zoneminder/data'
