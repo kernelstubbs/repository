@@ -129,6 +129,7 @@ services:
       - 'traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3'
     dns:
       - 127.0.0.1
+      - 10.10.10.254
     ports:
       - 53:53/tcp
       - 53:53/udp
@@ -383,6 +384,10 @@ networks:
   guac-net:
   ntp-net:
   piHole-net:
+    ipam: # specifying IP range to filter out subnet in piHole
+     config:
+       - subnet: 10.10.9.0/24
+         gateway: 10.10.9.1
   port-net:
   postgres-net:
   plex-net:
