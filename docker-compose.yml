@@ -382,12 +382,7 @@ services:
 networks:
   forge-net:
   guac-net:
-  ntp-net:
   piHole-net:
-    ipam: # specifying IP range to filter out subnet in piHole
-     config:
-       - subnet: 10.10.9.0/24
-         gateway: 10.10.9.1
   port-net:
   postgres-net:
   plex-net:

@@ -1,34 +1,9 @@
 #!/bin/bash
-# set -Eeu -o pipefail
-
-# Rewritten for ALPINE
-
-# test for root and exit
-[ "$EUID" -ne 0 ] && echo "Please run as root" && exit
-echo "User is root - proceeding..."
 
 workingDIR="/opt/docker/homelab"
 
 echo $workingDIR
-
-echo "Checking for community repo..."
-# See if the $(ver)/community repo is commented out
-if cat /etc/apk/repositories | grep '[0-9]\/community' | grep \#; then
-    # Find the line number of the $(ver)/community string in repositories
-    line=$(cat /etc/apk/repositories | grep -n '[0-9]\/community' | sed -r 's/(.{1}).*/\1/')
-    # Replace the '#' to uncomment the repo so docker can be installed
-    sed -in $line's/\#//'
-    apk update
 fi
-
-
-# Testing for GIT and CURL
-# TODO - improve package detection to work with apt, yum and others
-echo "Testing for GIT, Docker and CURL..."
-[ -x "$(command -v git)" ] || apk add git
-# -x "$(command -v curl)" ] || apk add curl
-[ -x "$(command -v docker)"] || apk add docker
-[ -x "$(command -v docker-compose)"] || apk add docker-compose
 
 # Clone the repo if the working directory is empty, rest if it's not
 echo "Testing for existing repo in $workingDIR..."
@@ -48,19 +23,6 @@ else
     echo "Nothing found - cloning into homelab"
     git clone https://github.com/kernelstubbs/repository.git $workingDIR
 fi
-
-###
-###  docker-compose is available from apk community and is relatively up to date - you can uncomment this if you want the latest
-###
-# Test for and install docker-compose in /usr/bin and add it to the path (since running in su, path may need to be modified per-user
-#composeVer=$(curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/docker/compose/releases/latest | sed 's#.*tag/##g')
-#if [ ! -x "$(command -v docker-compose)" ] || [ $(docker-compose version --short) != $composeVer ]; then
-    # See if /opt/bin exists and if it doesn't, create and add to path
-    # test -f "/opt/bin" || mkdir -p /opt/bin
-    # echo "$PATH"|grep -q "/opt/bin" || PATH=$PATH:/opt/bin
-#    curl -L "https://github.com/docker/compose/releases/download/$composeVer/docker-compose-$(uname -s)-$(uname -m)" -o /usr/bin/docker-compose
-#    chmod +x /usr/bin/docker-compose
-#fi
 
 # store key pairs in answers.csv to retrieve after docker pulls of updated compose files.
 answerFile="$workingDIR/answerfile.csv"
