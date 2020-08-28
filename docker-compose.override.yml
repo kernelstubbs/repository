@@ -48,6 +48,9 @@ services:
         container_name: rcon
         image: itzg/rcon
         hostname: rcon
+        environment:
+            RWA_USERNAME: admin
+            RWA_PASSWORD: password
         labels:
             - 'com.centurylinklabs.watchtower.enable=true'
 
@@ -59,9 +62,6 @@ services:
             - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
             - 'traefik.http.routers.rcon.entrypoints=web'
             - 'traefik.http.routers.rcon.priority=2'
-            #- 'traefik.http.routers.rcon.tls.domains[0].main=beowulf.cc'
-            #- 'traefik.http.routers.rcon.tls.domains[0].sans=*.beowulf.cc'
-            #- 'traefik.http.routers.rcon.tls.certresolver=CFWildcard'
             - 'traefik.http.routers.rcon.service=rcon'
             - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
         ports:
