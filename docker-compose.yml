@@ -89,6 +89,7 @@ services:
       - '80:80'
       - '443:443'
     networks:
+      - forge-net
       - guac-net
       - piHole-net
       - plex-net
@@ -321,7 +322,7 @@ services:
 ####################################
   vpn:
     container_name: vpn
-    image: bubuntux/nordvpn
+    image: bubuntux/nordvpn:3.7.4
     hostname: vpn
     <<: *defaultCONF
     env_file: [./env/nordvpn.env]
@@ -357,7 +358,10 @@ services:
       - '58946:58946'
     networks: [torrent-net]
     devices: [/dev/net/tun]
-    cap_add: [NET_ADMIN]
+    sysctls: [net.ipv4.conf.all.rp_filter=2] # Temp Fix for https://github.com/bubuntux/nordvpn/issues/75
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
   deluge: # Watchtower currently cannot update containers in a vpn
     container_name: deluge
     image: linuxserver/deluge
