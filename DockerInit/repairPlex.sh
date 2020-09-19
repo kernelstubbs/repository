@@ -1,3 +1,5 @@
+#! /bin/bash
+
 # Use this to repair the plex database if it becomes corrupted.
 
 plexContainerName="plex"
