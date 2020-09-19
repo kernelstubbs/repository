@@ -1,9 +1,7 @@
-#! /bin/bash
-
 # Use this to repair the plex database if it becomes corrupted.
 
-plexContainerName="plex"
-dbDir="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases"
+plexCTR="plex"
+dbFile="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
 
 OW='\e[1A\e[K'  # Overwrite previous line
 NC='\033[0m'    # no colour
@@ -24,28 +22,28 @@ runCMD () {
 }
 
 runCMD "Backing up database" \
-    "docker exec -d $plexContainerName cp \"$dbDir/com.plexapp.plugins.library.db\" \"$dbDir/com.plexapp.plugins.library.db.original\""
+    "docker exec -d $plexCTR cp \"$dbFile\" \"$dbFile.original\""
 
 runCMD "Dropping Indexes" \
-    "docker exec -d $plexContainerName sqlite3 \"${dbDir}/com.plexapp.plugins.library.db\" \"DROP index 'index_title_sort_naturalsort'\""
+    "docker exec -d $plexCTR sqlite3 \"${dbFile}\" \"DROP index 'index_title_sort_naturalsort'\""
 
 runCMD "Deleting migrations from schema" \
-    "docker exec -d $plexContainerName sqlite3 \"${dbDir}/com.plexapp.plugins.library.db\" \"DELETE from schema_migrations where version='20180501000000'\""
+    "docker exec -d $plexCTR sqlite3 \"${dbFile}\" \"DELETE from schema_migrations where version='20180501000000'\""
 
 runCMD "Dumping db to dump.sql" \
-    "docker exec -d $plexContainerName sqlite3 \"${dbDir}/com.plexapp.plugins.library.db\" .dump > dump.sql"
+    "docker exec -d $plexCTR sqlite3 \"${dbFile}\" .dump > dump.sql"
 
 runCMD "Deleting old database" \
-    "docker exec -d $plexContainerName rm \"${dbDir}/com.plexapp.plugins.library.db\""
+    "docker exec -d $plexCTR rm \"${dbFile}\""
 
 runCMD "Restoring dump.sql to new database" \
-    "docker exec -d $plexContainerName sqlite3 \"${dbDir}/com.plexapp.plugins.library.db\" < dump.sql"
+    "docker exec -d $plexCTR sqlite3 \"${dbFile}\" < dump.sql"
 
 runCMD "Deleting db-shm" \
-    "docker exec -d $plexContainerName rm \"${dbDir}/com.plexapp.plugins.library.db-shm\""
+    "docker exec -d $plexCTR rm \"${dbFile}-shm\""
 
 runCMD "Deleting db-wal" \
-    "docker exec -d $plexContainerName rm \"${dbDir}/com.plexapp.plugins.library.db-wal\""
+    "docker exec -d $plexCTR rm \"${dbFile}-wal\""
 
 runCMD "Verifying database integrity" \
-    "docker exec -d $plexContainerName sqlite3 \"${dbDir}/com.plexapp.plugins.library.db\" \"PRAGMA integrity_check\""
+    "docker exec -d $plexCTR sqlite3 \"${dbFile}\" \"PRAGMA integrity_check\""
