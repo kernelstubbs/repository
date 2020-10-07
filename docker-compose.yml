@@ -216,7 +216,7 @@ services:
       - guacRecord:/record:rw
   postgres:
     container_name: postgres
-    image: postgres
+    image: postgres:12.4
     <<: *defaultCONF
     labels: ['com.centurylinklabs.watchtower.enable=true']
     env_file: [./env/guacamole.env]

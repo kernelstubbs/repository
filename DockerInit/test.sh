@@ -1,7 +1,4 @@
-# Use this to repair the plex database if it becomes corrupted.
-
-plexCTR="plex"
-dbFile="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
+# Use to execute commands with an OK/FAIL confirmation
 
 OW='\e[1A\e[K'  # Overwrite previous line
 NC='\033[0m'    # no colour
@@ -10,12 +7,13 @@ RD='\033[0;31m' # red
 
 runCMD () {
     echo -e "${NC}[    ] ${1}"
+    sleep 1 # because when things happen instantly, people don't think it's as cool
     { # try
         eval ${2} 2> /dev/null \
         && \
-        echo -e "${OW}[${GR} OK ${NC}]${1}"
+        echo -e "${OW}[${GR} OK ${NC}] ${1}"
     } || { # catch
-        echo -e "${OW}[${RD}FAIL${NC}]${1}"
+        echo -e "${OW}[${RD}FAIL${NC}] ${1}"
     }
 }
 

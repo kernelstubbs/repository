@@ -14,9 +14,9 @@ runCMD () {
     { # try
         eval ${2} \
         && \
-        echo -e "${OW}[${GR} OK ${NC}]${1}"
+        echo -e "${OW}[${GR} OK ${NC}] ${1}"
     } || { # catch
-        echo -e "${OW}[${RD}FAIL${NC}]${1}" \
+        echo -e "${OW}[${RD}FAIL${NC}] ${1}" \
         && \
         exit
     }
