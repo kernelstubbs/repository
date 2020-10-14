@@ -159,6 +159,26 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainerDAT:/data
+  yacht:
+    container_name: yacht
+    image: selfhostedpro/yacht
+    hostname: yacht
+    <<: *defaultCONF
+    labels:
+      - 'com.centurylinklabs.watchtower.enable=true'
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.yacht.rule=Host(`yacht.beowulf.cc`)'
+      - 'traefik.http.routers.yacht.entrypoints=websecure'
+      - 'traefik.http.routers.yacht.tls.domains[0].main=beowulf.cc'
+      - 'traefik.http.routers.yacht.tls.domains[0].sans=*.beowulf.cc'
+      - 'traefik.http.routers.yacht.tls.certresolver=CFWildcard'
+      - 'traefik.http.services.yacht.loadbalancer.server.port=9000'
+      - 'traefik.docker.network=docker_port-net'
+    networks: [yacht-net]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - yachtCFG:/config
+
   watchtower:
     container_name: watchtower
     image: v2tec/watchtower
@@ -484,6 +504,11 @@ volumes:
     driver_opts:
       <<: *driverOpts
       device: ':/volume1/docker/traefik/etc'
+  yachtCFG:
+    <<: *nfsDriver
+    driver_opts:
+      <<: *driverOpts
+      device: ':/volume1/docker/yacht/config'
   zoneminderCFG:
     <<: *nfsDriver
     driver_opts:
