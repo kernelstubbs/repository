@@ -96,6 +96,7 @@ services:
       - port-net
       - postgres-net
       - torrent-net
+      - yacht-net
       - zoneminder-net
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -172,7 +173,7 @@ services:
       - 'traefik.http.routers.yacht.tls.domains[0].main=beowulf.cc'
       - 'traefik.http.routers.yacht.tls.domains[0].sans=*.beowulf.cc'
       - 'traefik.http.routers.yacht.tls.certresolver=CFWildcard'
-      - 'traefik.http.services.yacht.loadbalancer.server.port=9000'
+      - 'traefik.http.services.yacht.loadbalancer.server.port=8000'
       - 'traefik.docker.network=docker_port-net'
     networks: [yacht-net]
     volumes:
@@ -411,6 +412,7 @@ networks:
   postgres-net:
   plex-net:
   torrent-net:
+  yacht-net:
   zoneminder-net:
 
 volumes:
