@@ -26,24 +26,24 @@ services:
 ##    
 ##
 ########################################################################
-#    forge:
-#        container_name: forge
-#        image: itzg/minecraft-server
-#        hostname: forge
-#        environment:
-#            TYPE: CURSEFORGE
-#            CF_SERVER_MOD: SkyFactory_4_Server_4.1.0.zip
-#            EULA: TRUE
-#            ENABLE_RCON: TRUE
-#            RCON_PASSWORD: m1n3craft
-#            RCON_PORT: 28016
-#            CFG_DB_HOST: "http://localhost:3306"
-#            CFG_DB_NAME: "minecraft"
-#            CFG_DB_PASSWORD: "m1n3craft"
-#        ports: ['25565:25565']
-#        networks: [forge-net]
-#        volumes: ['forgeMC:/data']
-#        restart: unless-stopped
+    forge:
+        container_name: forge
+        image: itzg/minecraft-server:multiarch
+        hostname: forge
+        environment:
+            TYPE: FTBA
+            FTB_MODPACK_ID: 76
+            EULA: TRUE
+            ENABLE_RCON: TRUE
+            RCON_PASSWORD: m1n3craft
+            RCON_PORT: 28016
+            CFG_DB_HOST: "http://localhost:3306"
+            CFG_DB_NAME: "minecraft"
+            CFG_DB_PASSWORD: "m1n3craft"
+        ports: ['25565:25565']
+        networks: [forge-net]
+        volumes: ['forgeMC:/data']
+        restart: unless-stopped
     rcon:
         container_name: rcon
         image: itzg/rcon
@@ -104,47 +104,47 @@ services:
         networks: [forge-net]
         volumes: ['bedrockMC:/data']
         restart: unless-stopped
-    vanilla:
-        container_name: vanilla
-        image: itzg/minecraft-server
-        hostname: vanilla
-        environment:
-            EULA: 'TRUE'
-            ENABLE_RCON: 'TRUE'
-            RCON_PASSWORD: m1n3craft
-            RCON_PORT: 28016
-        ports: ['25567:25565']
-        networks: [forge-net]
-        volumes: ['./minecraft:/data']
-        restart: unless-stopped
-    vanillaBAK:
-        container_name: vanillaBAK
-        image: itzg/mc-backup
-        environment:
-            BACKUP_NAME: 'vanilla'
-            BACKUP_INTERVAL: '24h'
-            PRUNE_BACKUPS_DAYS: 7
-            BACKUP_METHOD: 'tar'
-            DEST_DIR: '/backups'
-            LINK_LATEST: 'false'
-            INITIAL_DELAY: 0
-            RCON_HOST: vanilla
-            RCON_PORT: 28016
-            RCON_PASSWORD: m1n3craft
-        networks: [forge-net]
-        volumes:
-            - 'backupMC:/backups'
-            - './minecraft:/data'
-    terraria:
-        container_name: 'terraria'
-        image: ryshe/terraria
-        command: '-world /world/The_Unlawful_Crown_of_Teeth.wld'
-        ports: ['7777:7777']
-        networks: [terraria-net]
-        volumes: [terraria:/world]
+#    vanilla:
+#        container_name: vanilla
+#        image: itzg/minecraft-server
+#        hostname: vanilla
+#        environment:
+#            EULA: 'TRUE'
+#            ENABLE_RCON: 'TRUE'
+#            RCON_PASSWORD: m1n3craft
+#            RCON_PORT: 28016
+#        ports: ['25567:25565']
+#        networks: [forge-net]
+#        volumes: ['./minecraft:/data']
+#        restart: unless-stopped
+#    vanillaBAK:
+#        container_name: vanillaBAK
+#        image: itzg/mc-backup
+#        environment:
+#            BACKUP_NAME: 'vanilla'
+#            BACKUP_INTERVAL: '24h'
+#            PRUNE_BACKUPS_DAYS: 7
+#            BACKUP_METHOD: 'tar'
+#            DEST_DIR: '/backups'
+#            LINK_LATEST: 'false'
+#            INITIAL_DELAY: 0
+#            RCON_HOST: vanilla
+#            RCON_PORT: 28016
+#            RCON_PASSWORD: m1n3craft
+#        networks: [forge-net]
+#        volumes:
+#            - 'backupMC:/backups'
+#            - './minecraft:/data'
+#    terraria:
+#       container_name: 'terraria'
+#        image: ryshe/terraria
+#        command: '-world /world/The_Unlawful_Crown_of_Teeth.wld'
+#        ports: ['7777:7777']
+#        networks: [terraria-net]
+#        volumes: [terraria:/world]
 
-networks:
-    terraria-net:
+#networks:
+#    terraria-net:
 
 volumes:
     backupMC: 
