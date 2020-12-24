@@ -3,7 +3,6 @@
 workingDIR="/opt/docker/homelab"
 
 echo $workingDIR
-fi
 
 # Clone the repo if the working directory is empty, rest if it's not
 echo "Testing for existing repo in $workingDIR..."

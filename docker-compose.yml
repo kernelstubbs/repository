@@ -343,7 +343,7 @@ services:
 ####################################
   vpn:
     container_name: vpn
-    image: bubuntux/nordvpn:3.7.4
+    image: bubuntux/nordvpn
     hostname: vpn
     <<: *defaultCONF
     env_file: [./env/nordvpn.env]
