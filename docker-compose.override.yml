@@ -16,6 +16,7 @@ services:
 ##    rcon - Server CLI management interface
 ##    bedrockCreative - A sandbox for the children...so many entities.....
 ##    bedrock - Survival world with train hub
+##    Satisfactory - War n' Juice's World
 ##    vanilla - Survival world with train hub
 ##    vanillaBak - server to backup to NAS since vanilla is run locally on SSD
 ##    Terraria - terraria
@@ -26,50 +27,50 @@ services:
 ##    
 ##
 ########################################################################
-    forge:
-        container_name: forge
-        image: itzg/minecraft-server:multiarch
-        hostname: forge
-        environment:
-            TYPE: FTBA
-            FTB_MODPACK_ID: 76
-            EULA: TRUE
-            ENABLE_RCON: TRUE
-            RCON_PASSWORD: m1n3craft
-            RCON_PORT: 28016
-            CFG_DB_HOST: "http://localhost:3306"
-            CFG_DB_NAME: "minecraft"
-            CFG_DB_PASSWORD: "m1n3craft"
-        ports: ['25565:25565']
-        networks: [forge-net]
-        volumes: ['forgeMC:/data']
-        restart: unless-stopped
-    rcon:
-        container_name: rcon
-        image: itzg/rcon
-        hostname: rcon
-        environment:
-            RWA_USERNAME: admin
-            RWA_PASSWORD: password
-        labels:
-            - 'com.centurylinklabs.watchtower.enable=true'
-
-            # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
-            # but unless I use a non ssl connection, the websocket doens't work
-
-            # Web UI
-            - 'traefik.enable=true'
-            - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
-            - 'traefik.http.routers.rcon.entrypoints=web'
-            - 'traefik.http.routers.rcon.priority=2'
-            - 'traefik.http.routers.rcon.service=rcon'
-            - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
-        ports:
-            - 4326:4326
-            - 4327:4327
-        networks: [forge-net]
-        volumes: [rcon:/opt/rcon-web-admin/db]
-        restart: always
+#    forge:
+#        container_name: forge
+#        image: itzg/minecraft-server:multiarch
+#        hostname: forge
+#        environment:
+#            TYPE: FTBA
+#            FTB_MODPACK_ID: 76
+#            EULA: TRUE
+#            ENABLE_RCON: TRUE
+#            RCON_PASSWORD: m1n3craft
+#            RCON_PORT: 28016
+#            CFG_DB_HOST: "http://localhost:3306"
+#            CFG_DB_NAME: "minecraft"
+#            CFG_DB_PASSWORD: "m1n3craft"
+#        ports: ['25565:25565']
+#        networks: [forge-net]
+#        volumes: ['forgeMC:/data']
+#        restart: unless-stopped
+#    rcon:
+#        container_name: rcon
+#        image: itzg/rcon
+#        hostname: rcon
+#        environment:
+#            RWA_USERNAME: admin
+#            RWA_PASSWORD: password
+#        labels:
+#            - 'com.centurylinklabs.watchtower.enable=true'
+#
+#            # NOTE - rcon doesn't seem to be able to handle an https.  I can connect to the webinterface
+#            # but unless I use a non ssl connection, the websocket doens't work
+#
+#            # Web UI
+#            - 'traefik.enable=true'
+#            - 'traefik.http.routers.rcon.rule=Host(`rcon.beowulf.cc`)'
+#            - 'traefik.http.routers.rcon.entrypoints=web'
+#            - 'traefik.http.routers.rcon.priority=2'
+#            - 'traefik.http.routers.rcon.service=rcon'
+#            - 'traefik.http.services.rcon.loadbalancer.server.port=4326'
+#        ports:
+#            - 4326:4326
+#            - 4327:4327
+#        networks: [forge-net]
+#        volumes: [rcon:/opt/rcon-web-admin/db]
+#        restart: always
     bedrockCreative:
         container_name: bedrockCreative
         image: itzg/minecraft-bedrock-server
@@ -95,14 +96,50 @@ services:
         hostname: bedrock
         environment:
             EULA: 'TRUE'
-            GAMEMODE: survival
-            DIFFICULTY: normal
-            SERVER_NAME: 
+            GAMEMODE: 'survival'
+            LEVEL_TYPE: 'default'
+            DIFFICULTY: 'normal'
+            SERVER_NAME: 'Chronos'
+            MAX_PLAYERS: '7'
+            LEVEL_NAME: 'Chronos'
         ports:
             - 19132:19132/udp
             - 19132:19132/tcp
         networks: [forge-net]
         volumes: ['bedrockMC:/data']
+        restart: unless-stopped
+#    bedrock:
+#        container_name: bedrock
+#        image: itzg/minecraft-bedrock-server
+#        hostname: bedrock
+#        environment:
+#            EULA: 'TRUE'
+#            GAMEMODE: 'creative'
+#            LEVEL_TYPE: 'flat'
+#            DIFFICULTY: normal
+#            SERVER_NAME: 
+#            MAX_PLAYERS: '7'
+#        ports:
+#           - 19132:19132/udp
+#           - 19132:19132/tcp
+#        networks: [forge-net]
+#        volumes: ['bedrockMC:/data']
+#        restart: unless-stopped
+    satisfactory:
+        container_name: satisfactory
+        image: wolveix/satisfactory-server
+        hostname: satisfactory
+        environment:
+            - MAXPLAYERS=5
+            - PGID=101
+            - PUID=1026
+            - STEAMBETA=false
+        ports:
+            - '7777:7777/udp'
+            - '15000:15000/udp'
+            - '15777:15777/udp'
+        networks: [satisfactory-net]
+        volumes: ['satisfactoryCFG:/config']
         restart: unless-stopped
 #    vanilla:
 #        container_name: vanilla
@@ -142,9 +179,33 @@ services:
 #        ports: ['7777:7777']
 #        networks: [terraria-net]
 #        volumes: [terraria:/world]
+#    valheim:
+#        container_name: valheim
+#        image: lloesche/valheim-server
+#        hostname: valheim
+#        environment:
+#            SERVER_NAME: 'Wargate'
+#            WORLD_NAME: 'Wargate'
+#            SERVER_PASS: ###
+#            SERVER_PORT: 2456
+#            UPDATE_CRON: '*/15 * * * *'
+#            RESTART_CRON: '0 5 * * *'
+#            BACKUPS: 'true'
+#            BACKUPS_DIRECTORY: '/config/backups'
+#            BACKUPS_MAX_AGE: 3
+#        ports:
+#            - 2456-2458:2456-2458/udp
+#        networks: [valheim-net]
+#        volumes:
+#            - valheimDAT:/opt/valheim
+#            - valheimCFG:/config
+#        restart: unless-stopped
 
-#networks:
+networks:
 #    terraria-net:
+#    valheim-net:
+    satisfactory-net:
+    forge-net:
 
 volumes:
     backupMC: 
@@ -162,18 +223,33 @@ volumes:
         driver_opts:
             <<: *driverOpts
             device: ':/volume1/docker/bedrockCreative'
+    satisfactoryCFG:
+        <<: *nfsDriver
+        driver_opts:
+            <<: *driverOpts
+            device: ':/volume1/docker/satisfactory'
+    valheimCFG:
+        <<: *nfsDriver
+        driver_opts:
+            <<: *driverOpts
+            device: ':/volume1/docker/valheim/config'    
+    valheimDAT:
+        <<: *nfsDriver     
+        driver_opts:
+            <<: *driverOpts
+            device: ':/volume1/docker/valheim/data'
     forgeMC:
         <<: *nfsDriver
         driver_opts:
             <<: *driverOpts
-            device: ':/volume1/docker/forge/data'
-    rcon: 
-        <<: *nfsDriver
-        driver_opts:
-            <<: *driverOpts
-            device: ':/volume1/docker/rcon/db'
-    terraria:
-        <<: *nfsDriver
-        driver_opts: 
-            <<: *driverOpts
-            device: ':/volume1/docker/terraria'
+            device: ':/volume1/docker/forge/createanb'
+    #rcon: 
+    #    <<: *nfsDriver
+    #    driver_opts:
+    #        <<: *driverOpts
+    #        device: ':/volume1/docker/rcon/db'      
+    #terraria:
+    #    <<: *nfsDriver
+    #    driver_opts: 
+    #        <<: *driverOpts
+    #        device: ':/volume1/docker/terraria'

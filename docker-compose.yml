@@ -129,9 +129,6 @@ services:
       # add admin to path
       - 'traefik.http.middlewares.piholeadmin.replacepathregex.regex=^/((?i:(admin)/{0,1}|.{0})(.*))'
       - 'traefik.http.middlewares.piholeadmin.replacepathregex.replacement=/admin/$$3'
-    dns:
-      - 127.0.0.1
-      - 10.10.10.254
     ports:
       - 53:53/tcp
       - 53:53/udp
